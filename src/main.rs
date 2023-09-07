@@ -1,4 +1,7 @@
-use std::str::FromStr;
+use std::{
+    io::{self, Write},
+    str::FromStr,
+};
 
 use board::Board;
 
@@ -9,6 +12,7 @@ mod piece;
 
 fn main() {
     println!("Welcome to Rust Chess!");
+    println!("Please enter a move in the format: 'a2 a3'");
     let mut board = Board::new();
     println!("{}", board);
     loop {
@@ -36,7 +40,8 @@ fn main() {
 }
 
 fn get_input() -> String {
-    println!("Please enter a move in the format: 'a2 a3'");
+    print!("> ");
+    io::stdout().flush().unwrap();
     let mut input = String::new();
     std::io::stdin().read_line(&mut input).unwrap();
     input

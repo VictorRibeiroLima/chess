@@ -145,6 +145,9 @@ impl Board {
 
     pub fn move_piece(&mut self, from: Position, to: Position) -> bool {
         let piece = self.get_piece_at(&from).cloned();
+        if from == to {
+            return false;
+        }
         match piece {
             Some(mut piece) => {
                 let can_move = piece.can_move(from, to, self);
@@ -162,5 +165,71 @@ impl Board {
 
     pub fn get_piece_at(&self, position: &Position) -> Option<&ChessPiece> {
         self.pieces.get(position)
+    }
+
+    pub fn is_vertical_path_clean(&self, from: &Position, to: &Position) -> bool {
+        let mut y = from.y;
+        let x = from.x;
+
+        while y != to.y {
+            if y < to.y {
+                y += 1;
+            } else {
+                y -= 1;
+            }
+
+            let position = Position { x, y };
+            if self.get_piece_at(&position).is_some() {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    pub fn is_horizontal_path_clean(&self, from: &Position, to: &Position) -> bool {
+        let mut x = from.x;
+        let y = from.y;
+
+        while x != to.x {
+            if x < to.x {
+                x += 1;
+            } else {
+                x -= 1;
+            }
+
+            let position = Position { x, y };
+            if self.get_piece_at(&position).is_some() {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    pub fn is_diagonal_path_clean(&self, from: &Position, to: &Position) -> bool {
+        let mut x = from.x;
+        let mut y = from.y;
+
+        while x != to.x && y != to.y {
+            if x < to.x {
+                x += 1;
+            } else {
+                x -= 1;
+            }
+
+            if y < to.y {
+                y += 1;
+            } else {
+                y -= 1;
+            }
+
+            let position = Position { x, y };
+            if self.get_piece_at(&position).is_some() {
+                return false;
+            }
+        }
+
+        true
     }
 }

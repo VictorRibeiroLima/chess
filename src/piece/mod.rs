@@ -84,7 +84,11 @@ impl ChessPiece {
         }
         let move_result = match self.piece_type {
             Type::Pawn => can_move_pawn(self, &from, &to, board),
-            _ => false,
+            Type::Bishop => can_move_bishop(self, &from, &to, board),
+            Type::Rook => can_move_rock(self, &from, &to, board),
+            Type::King => can_move_king(self, &from, &to, board),
+            Type::Knight => can_move_knight(self, &from, &to, board),
+            Type::Queen => can_move_queen(self, &from, &to, board),
         };
 
         return move_result;
@@ -96,50 +100,144 @@ fn can_move_pawn(piece: &ChessPiece, from: &Position, to: &Position, board: &Boa
     let y_diff = to.y - from.y;
 
     let piece_at_position = board.get_piece_at(to);
+    let color = piece.color;
 
-    match piece_at_position {
-        None => {
-            //Whites can only move up the board,while blacks can only move down
-            if piece.get_color() == &Color::White {
-                if x_diff == 0 && y_diff == 1 {
-                    return true;
-                }
-            } else {
-                if x_diff == 0 && y_diff == -1 {
-                    return true;
-                }
-            }
+    match (x_diff.abs(), y_diff, piece_at_position) {
+        // No piece at the destination
+        (0, 1, None) if color == Color::White => true,
+        (0, -1, None) if color == Color::Black => true,
 
-            //If is the first movement of the pawn we can move 2 squares
-            if !piece.moved {
-                if piece.get_color() == &Color::White {
-                    if x_diff == 0 && y_diff == 2 {
-                        return true;
-                    }
-                } else {
-                    if x_diff == 0 && y_diff == -2 {
-                        return true;
-                    }
-                }
-            }
+        // First move, allowing two squares
+        (0, 2, None) => {
+            let is_path_clear = board.is_horizontal_path_clean(from, to);
+            let is_color_white = color == Color::White;
+            let is_first_move = !piece.moved;
+            is_path_clear && is_color_white && is_first_move
         }
-        Some(other_piece) => {
-            // Player can't place a piece on top of other piece of the same color
-            if other_piece.color == piece.color {
-                return false;
-            }
-
-            if piece.get_color() == &Color::White {
-                if x_diff.abs() == 1 && y_diff == 1 {
-                    return true;
-                }
-            } else {
-                if x_diff.abs() == 1 && y_diff == -1 {
-                    return true;
-                }
-            }
+        (0, -2, None) => {
+            let is_path_clear = board.is_horizontal_path_clean(from, to);
+            let is_color_black = color == Color::Black;
+            let is_first_move = !piece.moved;
+            is_path_clear && is_color_black && is_first_move
         }
+
+        // Capture diagonally (forward for white, backward for black)
+        (1, 1, Some(other_piece)) if color == Color::White && color != other_piece.color => true,
+        (1, -1, Some(other_piece)) if color == Color::Black && color != other_piece.color => true,
+
+        _ => false,
+    }
+}
+
+fn can_move_bishop(piece: &ChessPiece, from: &Position, to: &Position, board: &Board) -> bool {
+    let x_diff = (to.x - from.x).abs();
+    let y_diff = (to.y - from.y).abs();
+
+    let piece_at_position = board.get_piece_at(to);
+    let color = piece.color;
+
+    let is_path_clear = board.is_diagonal_path_clean(from, to);
+
+    if x_diff != y_diff {
+        return false;
     }
 
-    return false;
+    if !is_path_clear {
+        return false;
+    }
+
+    match piece_at_position {
+        None => true,
+        Some(other_piece) => color != other_piece.color,
+    }
+}
+
+fn can_move_rock(piece: &ChessPiece, from: &Position, to: &Position, board: &Board) -> bool {
+    let x_diff = (to.x - from.x).abs();
+    let y_diff = (to.y - from.y).abs();
+
+    if x_diff != 0 && y_diff != 0 {
+        return false;
+    }
+
+    let is_path_clear = match (x_diff, y_diff) {
+        (0, _) => board.is_vertical_path_clean(from, to),
+        (_, 0) => board.is_horizontal_path_clean(from, to),
+        _ => false,
+    };
+
+    if !is_path_clear {
+        return false;
+    }
+
+    let piece_at_position = board.get_piece_at(to);
+
+    match piece_at_position {
+        None => true,
+        Some(other_piece) => piece.color != other_piece.color,
+    }
+}
+
+pub fn can_move_king(piece: &ChessPiece, from: &Position, to: &Position, board: &Board) -> bool {
+    let x_diff = (to.x - from.x).abs();
+    let y_diff = (to.y - from.y).abs();
+
+    if x_diff > 1 || y_diff > 1 {
+        return false;
+    }
+
+    let piece_at_position = board.get_piece_at(to);
+
+    match piece_at_position {
+        None => true,
+        Some(other_piece) => piece.color != other_piece.color,
+    }
+}
+
+pub fn can_move_knight(piece: &ChessPiece, from: &Position, to: &Position, board: &Board) -> bool {
+    let x_diff = (to.x - from.x).abs();
+    let y_diff = (to.y - from.y).abs();
+
+    if x_diff == 0 || y_diff == 0 {
+        return false;
+    }
+
+    if x_diff + y_diff != 3 {
+        return false;
+    }
+
+    let piece_at_position = board.get_piece_at(to);
+
+    match piece_at_position {
+        None => true,
+        Some(other_piece) => piece.color != other_piece.color,
+    }
+}
+
+pub fn can_move_queen(piece: &ChessPiece, from: &Position, to: &Position, board: &Board) -> bool {
+    let x_diff = (to.x - from.x).abs();
+    let y_diff = (to.y - from.y).abs();
+
+    let piece_at_position = board.get_piece_at(to);
+    let color = piece.color;
+
+    //The queen is moving at a L shape and not a straight line
+    if x_diff != y_diff && x_diff != 0 && y_diff != 0 {
+        return false;
+    }
+
+    let is_path_clear = match (x_diff, y_diff) {
+        (0, _) => board.is_vertical_path_clean(from, to),
+        (_, 0) => board.is_horizontal_path_clean(from, to),
+        _ => board.is_diagonal_path_clean(from, to),
+    };
+
+    if !is_path_clear {
+        return false;
+    }
+
+    match piece_at_position {
+        None => true,
+        Some(other_piece) => color != other_piece.color,
+    }
 }
