@@ -9,7 +9,7 @@ use self::position::Position;
 pub mod position;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Piece {
+pub enum Type {
     Pawn,
     Knight,
     Bishop,
@@ -18,15 +18,15 @@ pub enum Piece {
     King,
 }
 
-impl Display for Piece {
+impl Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let piece = match self {
-            Piece::Pawn => "♙",
-            Piece::Knight => "♘",
-            Piece::Bishop => "♗",
-            Piece::Rook => "♖",
-            Piece::Queen => "♕",
-            Piece::King => "♔",
+            Type::Pawn => "♙",
+            Type::Knight => "♘",
+            Type::Bishop => "♗",
+            Type::Rook => "♖",
+            Type::Queen => "♕",
+            Type::King => "♔",
         };
         write!(f, "{}", piece)
     }
@@ -50,15 +50,14 @@ impl Display for Color {
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ChessPiece {
-    piece: Piece,
+    piece_type: Type,
     color: Color,
-    position: Position,
-    moved: bool,
+    pub moved: bool,
 }
 
 impl Display for ChessPiece {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let piece_display = self.piece.to_string();
+        let piece_display = self.piece_type.to_string();
         match self.color {
             Color::White => write!(f, "{}", piece_display.white()),
             Color::Black => write!(f, "{}", piece_display.red()), // black pieces are red for better visibility
@@ -67,51 +66,36 @@ impl Display for ChessPiece {
 }
 
 impl ChessPiece {
-    pub fn new(piece: Piece, color: Color, position: Position) -> ChessPiece {
+    pub fn new(piece_type: Type, color: Color) -> ChessPiece {
         ChessPiece {
-            piece,
+            piece_type,
             color,
-            position,
             moved: false,
         }
-    }
-
-    pub fn get_position(&self) -> &Position {
-        &self.position
     }
 
     pub fn get_color(&self) -> &Color {
         &self.color
     }
 
-    pub fn get_piece(&self) -> &Piece {
-        &self.piece
-    }
-
-    pub fn can_move(&self, position: Position, board: &Board) -> bool {
+    pub fn can_move(&self, from: Position, to: Position, board: &Board) -> bool {
         if self.get_color() != board.get_turn() {
             return false;
         }
-        let move_result = match self.piece {
-            Piece::Pawn => move_pawn(self, &position, board),
+        let move_result = match self.piece_type {
+            Type::Pawn => can_move_pawn(self, &from, &to, board),
             _ => false,
         };
 
         return move_result;
     }
-
-    pub fn move_piece(&mut self, position: Position) {
-        self.position = position;
-        self.moved = true;
-    }
 }
 
-fn move_pawn<'a>(piece: &ChessPiece, position: &Position, board: &'a Board) -> bool {
-    let current_position = piece.get_position();
-    let x_diff = position.x - current_position.x;
-    let y_diff = position.y - current_position.y;
+fn can_move_pawn(piece: &ChessPiece, from: &Position, to: &Position, board: &Board) -> bool {
+    let x_diff = to.x - from.x;
+    let y_diff = to.y - from.y;
 
-    let piece_at_position = board.get_piece_at(position);
+    let piece_at_position = board.get_piece_at(to);
 
     match piece_at_position {
         None => {

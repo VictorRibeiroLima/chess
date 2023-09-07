@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt;
 
-use crate::piece::{position::Position, ChessPiece, Color, Piece};
+use crate::piece::{position::Position, ChessPiece, Color, Type};
 
 pub struct Board {
     turn: Color,
@@ -46,7 +46,7 @@ impl Board {
         for x in 0..8 {
             pieces.insert(
                 Position { x, y: 1 },
-                ChessPiece::new(Piece::Pawn, Color::White, Position { x, y: 1 }),
+                ChessPiece::new(Type::Pawn, Color::White),
             );
         }
 
@@ -54,76 +54,76 @@ impl Board {
         for x in 0..8 {
             pieces.insert(
                 Position { x, y: 6 },
-                ChessPiece::new(Piece::Pawn, Color::Black, Position { x, y: 6 }),
+                ChessPiece::new(Type::Pawn, Color::Black),
             );
         }
 
         //Whites
         pieces.insert(
             Position { x: 0, y: 0 },
-            ChessPiece::new(Piece::Rook, Color::White, Position { x: 0, y: 0 }),
+            ChessPiece::new(Type::Rook, Color::White),
         );
         pieces.insert(
             Position { x: 1, y: 0 },
-            ChessPiece::new(Piece::Knight, Color::White, Position { x: 1, y: 0 }),
+            ChessPiece::new(Type::Knight, Color::White),
         );
         pieces.insert(
             Position { x: 2, y: 0 },
-            ChessPiece::new(Piece::Bishop, Color::White, Position { x: 2, y: 0 }),
+            ChessPiece::new(Type::Bishop, Color::White),
         );
         pieces.insert(
             Position { x: 3, y: 0 },
-            ChessPiece::new(Piece::Queen, Color::White, Position { x: 3, y: 0 }),
+            ChessPiece::new(Type::Queen, Color::White),
         );
         pieces.insert(
             Position { x: 4, y: 0 },
-            ChessPiece::new(Piece::King, Color::White, Position { x: 4, y: 0 }),
+            ChessPiece::new(Type::King, Color::White),
         );
         pieces.insert(
             Position { x: 5, y: 0 },
-            ChessPiece::new(Piece::Bishop, Color::White, Position { x: 5, y: 0 }),
+            ChessPiece::new(Type::Bishop, Color::White),
         );
         pieces.insert(
             Position { x: 6, y: 0 },
-            ChessPiece::new(Piece::Knight, Color::White, Position { x: 6, y: 0 }),
+            ChessPiece::new(Type::Knight, Color::White),
         );
         pieces.insert(
             Position { x: 7, y: 0 },
-            ChessPiece::new(Piece::Rook, Color::White, Position { x: 0, y: 0 }),
+            ChessPiece::new(Type::Rook, Color::White),
         );
 
         //Blacks
         pieces.insert(
             Position { x: 0, y: 7 },
-            ChessPiece::new(Piece::Rook, Color::Black, Position { x: 0, y: 7 }),
+            ChessPiece::new(Type::Rook, Color::Black),
         );
         pieces.insert(
             Position { x: 1, y: 7 },
-            ChessPiece::new(Piece::Knight, Color::Black, Position { x: 1, y: 7 }),
+            ChessPiece::new(Type::Knight, Color::Black),
         );
         pieces.insert(
             Position { x: 2, y: 7 },
-            ChessPiece::new(Piece::Bishop, Color::Black, Position { x: 2, y: 7 }),
+            ChessPiece::new(Type::Bishop, Color::Black),
         );
         pieces.insert(
             Position { x: 3, y: 7 },
-            ChessPiece::new(Piece::Queen, Color::Black, Position { x: 3, y: 7 }),
+            ChessPiece::new(Type::Queen, Color::Black),
         );
         pieces.insert(
             Position { x: 4, y: 7 },
-            ChessPiece::new(Piece::King, Color::Black, Position { x: 4, y: 7 }),
+            ChessPiece::new(Type::King, Color::Black),
         );
         pieces.insert(
             Position { x: 5, y: 7 },
-            ChessPiece::new(Piece::Bishop, Color::Black, Position { x: 5, y: 7 }),
+            ChessPiece::new(Type::Bishop, Color::Black),
         );
         pieces.insert(
             Position { x: 6, y: 7 },
-            ChessPiece::new(Piece::Knight, Color::Black, Position { x: 6, y: 7 }),
+            ChessPiece::new(Type::Knight, Color::Black),
         );
         pieces.insert(
             Position { x: 7, y: 7 },
-            ChessPiece::new(Piece::Rook, Color::Black, Position { x: 0, y: 7 }),
+            ChessPiece::new(Type::Rook, Color::Black),
         );
 
         Board {
@@ -147,14 +147,14 @@ impl Board {
         let piece = self.get_piece_at(&from).cloned();
         match piece {
             Some(mut piece) => {
-                let moved = piece.can_move(to, self);
-                piece.move_piece(to);
-                if moved {
+                let can_move = piece.can_move(from, to, self);
+                if can_move {
+                    piece.moved = true;
                     self.pieces.remove(&from);
                     self.pieces.insert(to, piece);
                     self.change_turn();
                 }
-                return moved;
+                return can_move;
             }
             None => false,
         }
