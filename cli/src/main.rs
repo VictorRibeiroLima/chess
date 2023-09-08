@@ -3,12 +3,7 @@ use std::{
     str::FromStr,
 };
 
-use board::Board;
-
-use crate::piece::position::Position;
-
-mod board;
-mod piece;
+use engine::{board::Board, piece::position::Position};
 
 fn main() {
     println!("Welcome to Rust Chess!");

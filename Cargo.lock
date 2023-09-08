@@ -18,10 +18,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "chess"
+name = "cli"
 version = "0.1.0"
 dependencies = [
- "colored",
+ "engine",
 ]
 
 [[package]]
@@ -33,6 +33,13 @@ dependencies = [
  "is-terminal",
  "lazy_static",
  "windows-sys",
+]
+
+[[package]]
+name = "engine"
+version = "0.1.0"
+dependencies = [
+ "colored",
 ]
 
 [[package]]
