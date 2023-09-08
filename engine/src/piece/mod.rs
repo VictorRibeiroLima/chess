@@ -8,6 +8,9 @@ use self::position::Position;
 
 pub mod position;
 
+#[cfg(test)]
+mod test;
+
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Type {
     Pawn,
@@ -74,8 +77,36 @@ impl ChessPiece {
         }
     }
 
+    pub fn create_king(color: Color) -> ChessPiece {
+        ChessPiece::new(Type::King, color)
+    }
+
+    pub fn create_queen(color: Color) -> ChessPiece {
+        ChessPiece::new(Type::Queen, color)
+    }
+
+    pub fn create_bishop(color: Color) -> ChessPiece {
+        ChessPiece::new(Type::Bishop, color)
+    }
+
+    pub fn create_knight(color: Color) -> ChessPiece {
+        ChessPiece::new(Type::Knight, color)
+    }
+
+    pub fn create_rook(color: Color) -> ChessPiece {
+        ChessPiece::new(Type::Rook, color)
+    }
+
+    pub fn create_pawn(color: Color) -> ChessPiece {
+        ChessPiece::new(Type::Pawn, color)
+    }
+
     pub fn get_color(&self) -> &Color {
         &self.color
+    }
+
+    pub fn get_type(&self) -> Type {
+        self.piece_type
     }
 
     pub fn can_move(&self, from: Position, to: Position, board: &Board) -> bool {
@@ -109,13 +140,13 @@ fn can_move_pawn(piece: &ChessPiece, from: &Position, to: &Position, board: &Boa
 
         // First move, allowing two squares
         (0, 2, None) => {
-            let is_path_clear = board.is_horizontal_path_clean(from, to);
+            let is_path_clear = board.is_vertical_path_clean(from, to);
             let is_color_white = color == Color::White;
             let is_first_move = !piece.moved;
             is_path_clear && is_color_white && is_first_move
         }
         (0, -2, None) => {
-            let is_path_clear = board.is_horizontal_path_clean(from, to);
+            let is_path_clear = board.is_vertical_path_clean(from, to);
             let is_color_black = color == Color::Black;
             let is_first_move = !piece.moved;
             is_path_clear && is_color_black && is_first_move

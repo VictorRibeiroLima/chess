@@ -1,11 +1,11 @@
-use std::collections::HashMap;
 use std::fmt;
 
 use crate::piece::{position::Position, ChessPiece, Color, Type};
 
 pub struct Board {
     turn: Color,
-    pieces: HashMap<Position, ChessPiece>,
+    pieces: [[Option<ChessPiece>; 8]; 8],
+    winner: Option<Color>,
 }
 
 impl fmt::Display for Board {
@@ -40,96 +40,79 @@ impl fmt::Display for Board {
 
 impl Board {
     pub fn new() -> Board {
-        let mut pieces = HashMap::new();
+        let first_white_row = [
+            Some(ChessPiece::create_rook(Color::White)),
+            Some(ChessPiece::create_knight(Color::White)),
+            Some(ChessPiece::create_bishop(Color::White)),
+            Some(ChessPiece::create_queen(Color::White)),
+            Some(ChessPiece::create_king(Color::White)),
+            Some(ChessPiece::create_bishop(Color::White)),
+            Some(ChessPiece::create_knight(Color::White)),
+            Some(ChessPiece::create_rook(Color::White)),
+        ];
 
-        // Populate the map with white pieces
-        for x in 0..8 {
-            pieces.insert(
-                Position { x, y: 1 },
-                ChessPiece::new(Type::Pawn, Color::White),
-            );
-        }
+        let second_white_row = [
+            Some(ChessPiece::create_pawn(Color::White)),
+            Some(ChessPiece::create_pawn(Color::White)),
+            Some(ChessPiece::create_pawn(Color::White)),
+            Some(ChessPiece::create_pawn(Color::White)),
+            Some(ChessPiece::create_pawn(Color::White)),
+            Some(ChessPiece::create_pawn(Color::White)),
+            Some(ChessPiece::create_pawn(Color::White)),
+            Some(ChessPiece::create_pawn(Color::White)),
+        ];
 
-        // Populate the map with black pieces
-        for x in 0..8 {
-            pieces.insert(
-                Position { x, y: 6 },
-                ChessPiece::new(Type::Pawn, Color::Black),
-            );
-        }
+        let first_black_row = [
+            Some(ChessPiece::create_rook(Color::Black)),
+            Some(ChessPiece::create_knight(Color::Black)),
+            Some(ChessPiece::create_bishop(Color::Black)),
+            Some(ChessPiece::create_queen(Color::Black)),
+            Some(ChessPiece::create_king(Color::Black)),
+            Some(ChessPiece::create_bishop(Color::Black)),
+            Some(ChessPiece::create_knight(Color::Black)),
+            Some(ChessPiece::create_rook(Color::Black)),
+        ];
 
-        //Whites
-        pieces.insert(
-            Position { x: 0, y: 0 },
-            ChessPiece::new(Type::Rook, Color::White),
-        );
-        pieces.insert(
-            Position { x: 1, y: 0 },
-            ChessPiece::new(Type::Knight, Color::White),
-        );
-        pieces.insert(
-            Position { x: 2, y: 0 },
-            ChessPiece::new(Type::Bishop, Color::White),
-        );
-        pieces.insert(
-            Position { x: 3, y: 0 },
-            ChessPiece::new(Type::Queen, Color::White),
-        );
-        pieces.insert(
-            Position { x: 4, y: 0 },
-            ChessPiece::new(Type::King, Color::White),
-        );
-        pieces.insert(
-            Position { x: 5, y: 0 },
-            ChessPiece::new(Type::Bishop, Color::White),
-        );
-        pieces.insert(
-            Position { x: 6, y: 0 },
-            ChessPiece::new(Type::Knight, Color::White),
-        );
-        pieces.insert(
-            Position { x: 7, y: 0 },
-            ChessPiece::new(Type::Rook, Color::White),
-        );
+        let second_black_row = [
+            Some(ChessPiece::create_pawn(Color::Black)),
+            Some(ChessPiece::create_pawn(Color::Black)),
+            Some(ChessPiece::create_pawn(Color::Black)),
+            Some(ChessPiece::create_pawn(Color::Black)),
+            Some(ChessPiece::create_pawn(Color::Black)),
+            Some(ChessPiece::create_pawn(Color::Black)),
+            Some(ChessPiece::create_pawn(Color::Black)),
+            Some(ChessPiece::create_pawn(Color::Black)),
+        ];
 
-        //Blacks
-        pieces.insert(
-            Position { x: 0, y: 7 },
-            ChessPiece::new(Type::Rook, Color::Black),
-        );
-        pieces.insert(
-            Position { x: 1, y: 7 },
-            ChessPiece::new(Type::Knight, Color::Black),
-        );
-        pieces.insert(
-            Position { x: 2, y: 7 },
-            ChessPiece::new(Type::Bishop, Color::Black),
-        );
-        pieces.insert(
-            Position { x: 3, y: 7 },
-            ChessPiece::new(Type::Queen, Color::Black),
-        );
-        pieces.insert(
-            Position { x: 4, y: 7 },
-            ChessPiece::new(Type::King, Color::Black),
-        );
-        pieces.insert(
-            Position { x: 5, y: 7 },
-            ChessPiece::new(Type::Bishop, Color::Black),
-        );
-        pieces.insert(
-            Position { x: 6, y: 7 },
-            ChessPiece::new(Type::Knight, Color::Black),
-        );
-        pieces.insert(
-            Position { x: 7, y: 7 },
-            ChessPiece::new(Type::Rook, Color::Black),
-        );
+        let pieces: [[Option<ChessPiece>; 8]; 8] = [
+            first_white_row,
+            second_white_row,
+            [None; 8],
+            [None; 8],
+            [None; 8],
+            [None; 8],
+            second_black_row,
+            first_black_row,
+        ];
 
         Board {
             turn: Color::White,
             pieces,
+            winner: None,
         }
+    }
+
+    #[cfg(test)]
+    pub fn mock(pieces: [[Option<ChessPiece>; 8]; 8], turn: Color) -> Board {
+        Board {
+            turn,
+            pieces,
+            winner: None,
+        }
+    }
+
+    pub fn get_winner(&self) -> Option<Color> {
+        self.winner
     }
 
     pub fn change_turn(&mut self) {
@@ -149,13 +132,10 @@ impl Board {
             return false;
         }
         match piece {
-            Some(mut piece) => {
+            Some(piece) => {
                 let can_move = piece.can_move(from, to, self);
                 if can_move {
-                    piece.moved = true;
-                    self.pieces.remove(&from);
-                    self.pieces.insert(to, piece);
-                    self.change_turn();
+                    self.make_movement(piece, from, to);
                 }
                 return can_move;
             }
@@ -164,14 +144,15 @@ impl Board {
     }
 
     pub fn get_piece_at(&self, position: &Position) -> Option<&ChessPiece> {
-        self.pieces.get(position)
+        let piece = self.pieces[position.y as usize][position.x as usize].as_ref();
+        piece
     }
 
     pub fn is_vertical_path_clean(&self, from: &Position, to: &Position) -> bool {
         let mut y = from.y;
         let x = from.x;
 
-        while y != to.y {
+        loop {
             if y < to.y {
                 y += 1;
             } else {
@@ -179,6 +160,11 @@ impl Board {
             }
 
             let position = Position { x, y };
+
+            if position == *to {
+                break;
+            }
+
             if self.get_piece_at(&position).is_some() {
                 return false;
             }
@@ -191,7 +177,7 @@ impl Board {
         let mut x = from.x;
         let y = from.y;
 
-        while x != to.x {
+        loop {
             if x < to.x {
                 x += 1;
             } else {
@@ -199,6 +185,9 @@ impl Board {
             }
 
             let position = Position { x, y };
+            if position == *to {
+                break;
+            }
             if self.get_piece_at(&position).is_some() {
                 return false;
             }
@@ -211,7 +200,7 @@ impl Board {
         let mut x = from.x;
         let mut y = from.y;
 
-        while x != to.x && y != to.y {
+        loop {
             if x < to.x {
                 x += 1;
             } else {
@@ -225,11 +214,30 @@ impl Board {
             }
 
             let position = Position { x, y };
+
+            if position == *to {
+                break;
+            }
+
             if self.get_piece_at(&position).is_some() {
                 return false;
             }
         }
 
         true
+    }
+
+    fn make_movement(&mut self, mut piece: ChessPiece, from: Position, to: Position) {
+        piece.moved = true;
+        let old_piece = self.pieces[to.y as usize][to.x as usize];
+        self.pieces[from.y as usize][from.x as usize] = None;
+        self.pieces[to.y as usize][to.x as usize] = Some(piece);
+
+        if let Some(old_piece) = old_piece {
+            if old_piece.get_type() == Type::King {
+                self.winner = Some(self.turn);
+            }
+        }
+        self.change_turn();
     }
 }

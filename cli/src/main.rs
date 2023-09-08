@@ -10,7 +10,7 @@ fn main() {
     println!("Please enter a move in the format: 'a2 a3'");
     let mut board = Board::new();
     println!("{}", board);
-    loop {
+    while board.get_winner().is_none() {
         let input = get_input();
         let moves: Vec<&str> = input.trim().split(" ").collect();
         if moves.len() != 2 {
@@ -32,6 +32,10 @@ fn main() {
         }
         println!("{}", board);
     }
+
+    let winner = board.get_winner().unwrap();
+
+    println!("{} wins!", winner);
 }
 
 fn get_input() -> String {
