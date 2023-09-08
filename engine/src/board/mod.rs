@@ -1,6 +1,9 @@
 use std::fmt;
 
-use crate::piece::{position::Position, ChessPiece, Color, Type};
+use crate::{
+    piece::{position::Position, ChessPiece, Color, Type},
+    result::{Movement, MovementError, OkMovement},
+};
 
 #[cfg(test)]
 mod test;
@@ -11,6 +14,7 @@ pub struct Board {
     pieces: [[Option<ChessPiece>; 8]; 8],
     winner: Option<Color>,
     check: Option<Color>,
+    last_move: Option<Movement>,
 }
 
 impl fmt::Display for Board {
@@ -53,6 +57,7 @@ impl Board {
             pieces: Board::initial_pieces_setup(),
             winner: None,
             check: None,
+            last_move: None,
         }
     }
 
@@ -61,15 +66,22 @@ impl Board {
         self.pieces = Board::initial_pieces_setup();
         self.winner = None;
         self.check = None;
+        self.last_move = None;
     }
 
     #[cfg(test)]
-    pub fn mock(pieces: [[Option<ChessPiece>; 8]; 8], turn: Color, check: Option<Color>) -> Board {
+    pub fn mock(
+        pieces: [[Option<ChessPiece>; 8]; 8],
+        turn: Color,
+        check: Option<Color>,
+        last_move: Option<Movement>,
+    ) -> Board {
         Board {
             turn,
             pieces,
             winner: None,
             check,
+            last_move,
         }
     }
 
@@ -96,18 +108,35 @@ impl Board {
         self.check
     }
 
+    pub fn get_last_move(&self) -> Option<Movement> {
+        self.last_move
+    }
+
     pub fn move_piece(&mut self, from: Position, to: Position) -> bool {
         let piece = self.get_piece_at(&from).cloned();
         if from == to {
+            self.last_move = Some(Err(MovementError::SamePosition));
             return false;
         }
         match piece {
             Some(piece) => {
                 if piece.get_color() != self.turn {
+                    self.last_move = Some(Err(MovementError::InvalidPiece));
                     return false;
                 }
-                let can_move = piece.can_move(from, to, self);
+                let movement = piece.can_move(from, to, self);
+                self.last_move = Some(movement);
+                let can_move = movement.is_ok();
                 if can_move {
+                    let movement = movement.unwrap();
+                    match movement {
+                        OkMovement::EnPassant((from, to)) => {
+                            let enemy_pawn_position = Position { x: to.x, y: from.y };
+                            self.pieces[enemy_pawn_position.y as usize]
+                                [enemy_pawn_position.x as usize] = None;
+                        }
+                        _ => {}
+                    };
                     let removed_piece = self.make_movement(piece, from, to);
                     let game_over = Board::game_over(removed_piece);
 
@@ -272,7 +301,8 @@ impl Board {
                 if let Some(piece) = piece {
                     let piece_color = piece.get_color();
                     if piece_color != king_color {
-                        let can_move = piece.can_move(position, king_position, self);
+                        let movement = piece.can_move(position, king_position, self);
+                        let can_move = movement.is_ok();
                         if can_move {
                             is_check = true;
                         }

@@ -84,7 +84,7 @@ fn test_should_create_check() {
         black_first_row,
     ];
 
-    let mut board = Board::mock(pieces, Color::White, None);
+    let mut board = Board::mock(pieces, Color::White, None, None);
 
     let from = Position::from_str("d3").unwrap();
     let to = Position::from_str("e4").unwrap();
@@ -176,7 +176,7 @@ fn test_should_create_check_2() {
         black_first_row,
     ];
 
-    let mut board = Board::mock(pieces, Color::White, None);
+    let mut board = Board::mock(pieces, Color::White, None, None);
 
     let from = Position::from_str("d3").unwrap();
     let to = Position::from_str("e4").unwrap();
@@ -268,7 +268,7 @@ fn test_should_create_checkmate() {
         black_first_row,
     ];
 
-    let mut board = Board::mock(pieces, Color::White, None);
+    let mut board = Board::mock(pieces, Color::White, None, None);
 
     let from = Position::from_str("d3").unwrap();
     let to = Position::from_str("e4").unwrap();
@@ -280,4 +280,3 @@ fn test_should_create_checkmate() {
         panic!("Expected checkmate");
     }
 }
-

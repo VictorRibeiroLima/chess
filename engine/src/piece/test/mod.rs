@@ -83,13 +83,13 @@ fn bishop_movement_test() {
         first_black_row,
     ];
 
-    let board = Board::mock(pieces, Color::Black, None);
+    let board = Board::mock(pieces, Color::Black, None, None);
 
     let from = Position::from_str("e4").unwrap();
     let to = Position::from_str("f3").unwrap();
     let bishop = board.get_piece_at(&from).unwrap();
 
-    assert!(bishop.can_move(from, to, &board));
+    assert!(bishop.can_move(from, to, &board).is_ok());
 }
 
 #[test]
@@ -101,7 +101,7 @@ fn initial_pawn_movement_test() {
 
     let pawn = board.get_piece_at(&from).unwrap();
 
-    assert!(pawn.can_move(from, to, &board));
+    assert!(pawn.can_move(from, to, &board).is_ok());
 }
 
 #[test]
@@ -114,7 +114,7 @@ fn initial_pawn_movement_2_test() {
 
     let pawn = board.get_piece_at(&from).unwrap();
 
-    assert!(pawn.can_move(from, to, &board));
+    assert!(pawn.can_move(from, to, &board).is_ok());
 }
 
 #[test]
@@ -163,14 +163,14 @@ fn initial_pawn_movement_2_test_blocked() {
         [None; 8],
     ];
 
-    let board = Board::mock(pieces, Color::White, None);
+    let board = Board::mock(pieces, Color::White, None, None);
 
     let from = Position::from_str("c2").unwrap();
     let to = Position::from_str("c4").unwrap();
 
     let pawn = board.get_piece_at(&from).unwrap();
 
-    assert!(!pawn.can_move(from, to, &board));
+    assert!(!pawn.can_move(from, to, &board).is_ok());
 }
 
 #[test]
@@ -241,14 +241,14 @@ fn test_cant_make_a_movement_that_dont_remove_check() {
         black_first_row,
     ];
 
-    let board = Board::mock(pieces, Color::Black, Some(Color::Black));
+    let board = Board::mock(pieces, Color::Black, Some(Color::Black), None);
 
     let from = Position::from_str("a7").unwrap();
     let to = Position::from_str("a5").unwrap();
 
     let pawn = board.get_piece_at(&from).unwrap();
 
-    assert!(!pawn.can_move(from, to, &board));
+    assert!(!pawn.can_move(from, to, &board).is_ok());
 }
 
 #[test]
@@ -319,14 +319,14 @@ fn test_can_make_a_movement_that_remove_check() {
         black_first_row,
     ];
 
-    let board = Board::mock(pieces, Color::Black, Some(Color::Black));
+    let board = Board::mock(pieces, Color::Black, Some(Color::Black), None);
 
     let from = Position::from_str("e8").unwrap();
     let to = Position::from_str("d7").unwrap();
 
     let king = board.get_piece_at(&from).unwrap();
 
-    assert!(king.can_move(from, to, &board));
+    assert!(king.can_move(from, to, &board).is_ok());
 }
 
 #[test]
@@ -399,14 +399,14 @@ fn weird_legal_move_pawn() {
         black_first_row,
     ];
 
-    let board = Board::mock(pieces, Color::Black, Some(Color::Black));
+    let board = Board::mock(pieces, Color::Black, Some(Color::Black), None);
 
     let from = Position::from_str("d4").unwrap();
     let to = Position::from_str("e1").unwrap();
 
     let pawn = board.get_piece_at(&from).unwrap();
 
-    assert!(!pawn.can_move(from, to, &board));
+    assert!(!pawn.can_move(from, to, &board).is_ok());
 }
 
 #[test]
@@ -479,14 +479,14 @@ fn weird_legal_move_knight() {
         black_first_row,
     ];
 
-    let board = Board::mock(pieces, Color::Black, None);
+    let board = Board::mock(pieces, Color::Black, None, None);
 
     let from = Position::from_str("g8").unwrap();
     let to = Position::from_str("e7").unwrap();
 
     let knight = board.get_piece_at(&from).unwrap();
 
-    assert!(knight.can_move(from, to, &board));
+    assert!(knight.can_move(from, to, &board).is_ok());
 }
 
 #[test]
@@ -559,13 +559,13 @@ fn test_move_should_not_be_possible_if_creates_check() {
         black_first_row,
     ];
 
-    let board = Board::mock(pieces, Color::Black, None);
+    let board = Board::mock(pieces, Color::Black, None, None);
 
     let from = Position::from_str("e7").unwrap();
     let to = Position::from_str("g8").unwrap();
 
     let knight = board.get_piece_at(&from).unwrap();
-    assert!(!knight.can_move(from, to, &board));
+    assert!(!knight.can_move(from, to, &board).is_ok());
 }
 
 #[test]
@@ -596,12 +596,12 @@ fn test_double_check() {
         first_row, second_row, [None; 8], [None; 8], [None; 8], [None; 8], [None; 8], [None; 8],
     ];
 
-    let board = Board::mock(pieces, Color::White, Some(Color::White));
+    let board = Board::mock(pieces, Color::White, Some(Color::White), None);
 
     let from = Position::from_str("a1").unwrap();
     let to = Position::from_str("a2").unwrap();
 
     let king = board.get_piece_at(&from).unwrap();
 
-    assert!(king.can_move(from, to, &board));
+    assert!(king.can_move(from, to, &board).is_ok());
 }
