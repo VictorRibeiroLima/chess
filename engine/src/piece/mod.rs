@@ -35,7 +35,7 @@ impl Display for Type {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum Color {
     White,
     Black,
@@ -101,8 +101,8 @@ impl ChessPiece {
         ChessPiece::new(Type::Pawn, color)
     }
 
-    pub fn get_color(&self) -> &Color {
-        &self.color
+    pub fn get_color(&self) -> Color {
+        self.color
     }
 
     pub fn get_type(&self) -> Type {
@@ -110,10 +110,7 @@ impl ChessPiece {
     }
 
     pub fn can_move(&self, from: Position, to: Position, board: &Board) -> bool {
-        if self.get_color() != board.get_turn() {
-            return false;
-        }
-        let move_result = match self.piece_type {
+        let legal_movement = match self.piece_type {
             Type::Pawn => can_move_pawn(self, &from, &to, board),
             Type::Bishop => can_move_bishop(self, &from, &to, board),
             Type::Rook => can_move_rock(self, &from, &to, board),
@@ -122,7 +119,17 @@ impl ChessPiece {
             Type::Queen => can_move_queen(self, &from, &to, board),
         };
 
-        return move_result;
+        if !legal_movement {
+            return false;
+        }
+
+        if let Some(check_color) = board.get_check() {
+            if check_color == self.color {
+                return board.removes_check(from, to);
+            }
+        }
+
+        return legal_movement;
     }
 }
 

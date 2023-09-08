@@ -83,7 +83,7 @@ fn bishop_movement_test() {
         first_black_row,
     ];
 
-    let board = Board::mock(pieces, Color::Black);
+    let board = Board::mock(pieces, Color::Black, None);
 
     let from = Position::from_str("e4").unwrap();
     let to = Position::from_str("f3").unwrap();
@@ -163,7 +163,7 @@ fn initial_pawn_movement_2_test_blocked() {
         [None; 8],
     ];
 
-    let board = Board::mock(pieces, Color::White);
+    let board = Board::mock(pieces, Color::White, None);
 
     let from = Position::from_str("c2").unwrap();
     let to = Position::from_str("c4").unwrap();
@@ -171,4 +171,160 @@ fn initial_pawn_movement_2_test_blocked() {
     let pawn = board.get_piece_at(&from).unwrap();
 
     assert!(!pawn.can_move(from, to, &board));
+}
+
+#[test]
+fn test_cant_make_a_movement_that_dont_remove_check() {
+    let first_white_row = [
+        Some(ChessPiece::create_rook(Color::White)),
+        Some(ChessPiece::create_knight(Color::White)),
+        Some(ChessPiece::create_bishop(Color::White)),
+        None,
+        Some(ChessPiece::create_king(Color::White)),
+        Some(ChessPiece::create_bishop(Color::White)),
+        Some(ChessPiece::create_knight(Color::White)),
+        Some(ChessPiece::create_rook(Color::White)),
+    ];
+
+    let white_second_row = [
+        Some(ChessPiece::create_pawn(Color::White)),
+        Some(ChessPiece::create_pawn(Color::White)),
+        Some(ChessPiece::create_pawn(Color::White)),
+        None,
+        Some(ChessPiece::create_pawn(Color::White)),
+        Some(ChessPiece::create_pawn(Color::White)),
+        Some(ChessPiece::create_pawn(Color::White)),
+        Some(ChessPiece::create_pawn(Color::White)),
+    ];
+
+    let fourth_row = [
+        None,
+        None,
+        None,
+        Some(ChessPiece::create_pawn(Color::Black)),
+        Some(ChessPiece::create_queen(Color::White)),
+        None,
+        None,
+        None,
+    ];
+
+    let black_first_row = [
+        Some(ChessPiece::create_rook(Color::Black)),
+        Some(ChessPiece::create_knight(Color::Black)),
+        Some(ChessPiece::create_bishop(Color::Black)),
+        Some(ChessPiece::create_queen(Color::Black)),
+        Some(ChessPiece::create_king(Color::Black)),
+        Some(ChessPiece::create_bishop(Color::Black)),
+        Some(ChessPiece::create_knight(Color::Black)),
+        Some(ChessPiece::create_rook(Color::Black)),
+    ];
+
+    let black_second_row = [
+        Some(ChessPiece::create_pawn(Color::Black)),
+        Some(ChessPiece::create_pawn(Color::Black)),
+        Some(ChessPiece::create_pawn(Color::Black)),
+        None,
+        None,
+        Some(ChessPiece::create_pawn(Color::Black)),
+        Some(ChessPiece::create_pawn(Color::Black)),
+        Some(ChessPiece::create_pawn(Color::Black)),
+    ];
+
+    let pieces: [[Option<ChessPiece>; 8]; 8] = [
+        first_white_row,
+        white_second_row,
+        [None; 8],
+        fourth_row,
+        [None; 8],
+        [None; 8],
+        black_second_row,
+        black_first_row,
+    ];
+
+    let board = Board::mock(pieces, Color::Black, Some(Color::Black));
+
+    let from = Position::from_str("a7").unwrap();
+    let to = Position::from_str("a5").unwrap();
+
+    let pawn = board.get_piece_at(&from).unwrap();
+
+    assert!(!pawn.can_move(from, to, &board));
+}
+
+#[test]
+fn test_can_make_a_movement_that_remove_check() {
+    let first_white_row = [
+        Some(ChessPiece::create_rook(Color::White)),
+        Some(ChessPiece::create_knight(Color::White)),
+        Some(ChessPiece::create_bishop(Color::White)),
+        None,
+        Some(ChessPiece::create_king(Color::White)),
+        Some(ChessPiece::create_bishop(Color::White)),
+        Some(ChessPiece::create_knight(Color::White)),
+        Some(ChessPiece::create_rook(Color::White)),
+    ];
+
+    let white_second_row = [
+        Some(ChessPiece::create_pawn(Color::White)),
+        Some(ChessPiece::create_pawn(Color::White)),
+        Some(ChessPiece::create_pawn(Color::White)),
+        None,
+        Some(ChessPiece::create_pawn(Color::White)),
+        Some(ChessPiece::create_pawn(Color::White)),
+        Some(ChessPiece::create_pawn(Color::White)),
+        Some(ChessPiece::create_pawn(Color::White)),
+    ];
+
+    let fourth_row = [
+        None,
+        None,
+        None,
+        Some(ChessPiece::create_pawn(Color::Black)),
+        Some(ChessPiece::create_queen(Color::White)),
+        None,
+        None,
+        None,
+    ];
+
+    let black_first_row = [
+        Some(ChessPiece::create_rook(Color::Black)),
+        Some(ChessPiece::create_knight(Color::Black)),
+        Some(ChessPiece::create_bishop(Color::Black)),
+        Some(ChessPiece::create_queen(Color::Black)),
+        Some(ChessPiece::create_king(Color::Black)),
+        Some(ChessPiece::create_bishop(Color::Black)),
+        Some(ChessPiece::create_knight(Color::Black)),
+        Some(ChessPiece::create_rook(Color::Black)),
+    ];
+
+    let black_second_row = [
+        Some(ChessPiece::create_pawn(Color::Black)),
+        Some(ChessPiece::create_pawn(Color::Black)),
+        Some(ChessPiece::create_pawn(Color::Black)),
+        None,
+        None,
+        Some(ChessPiece::create_pawn(Color::Black)),
+        Some(ChessPiece::create_pawn(Color::Black)),
+        Some(ChessPiece::create_pawn(Color::Black)),
+    ];
+
+    let pieces: [[Option<ChessPiece>; 8]; 8] = [
+        first_white_row,
+        white_second_row,
+        [None; 8],
+        fourth_row,
+        [None; 8],
+        [None; 8],
+        black_second_row,
+        black_first_row,
+    ];
+
+    let board = Board::mock(pieces, Color::Black, Some(Color::Black));
+
+    let from = Position::from_str("e8").unwrap();
+    let to = Position::from_str("d7").unwrap();
+
+    let king = board.get_piece_at(&from).unwrap();
+
+    assert!(king.can_move(from, to, &board));
 }
