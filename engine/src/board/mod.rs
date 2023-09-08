@@ -120,6 +120,11 @@ impl Board {
 
                     if self.is_king_in_check(enemy_color) {
                         self.check = Some(enemy_color);
+                        let is_checkmate = self.is_checkmate(enemy_color);
+                        if is_checkmate {
+                            self.winner = Some(self.turn);
+                            return true;
+                        }
                     }
 
                     self.change_turn();
@@ -224,10 +229,11 @@ impl Board {
                 let mut board = self.clone();
                 let removed_piece = board.make_movement(piece, from, to);
                 let game_over = Board::game_over(removed_piece);
+
                 if game_over {
                     return true;
                 }
-                let is_king_in_check = board.is_king_in_check(self.turn);
+                let is_king_in_check = board.is_king_in_check(piece.get_color());
                 return !is_king_in_check;
             }
             None => false,
@@ -255,6 +261,27 @@ impl Board {
         }
 
         is_check
+    }
+
+    pub fn is_checkmate(&self, player_color: Color) -> bool {
+        for y in 0..8 {
+            for x in 0..8 {
+                if let Some(piece) = self.pieces[y][x] {
+                    if piece.get_color() == player_color {
+                        let from: Position = Position {
+                            x: x as i32,
+                            y: y as i32,
+                        };
+                        let legal_moves = piece.legal_moves(from, self);
+                        if !legal_moves.is_empty() {
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+
+        true // No legal moves can remove the check, it's checkmate
     }
 
     fn find_king_position(&self, color: Color) -> Option<Position> {

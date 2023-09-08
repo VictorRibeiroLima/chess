@@ -1,9 +1,37 @@
-use std::str::FromStr;
+use std::{fmt::Display, str::FromStr};
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct Position {
     pub x: i32,
     pub y: i32,
+}
+
+impl Display for Position {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let x = match self.x {
+            0 => 'a',
+            1 => 'b',
+            2 => 'c',
+            3 => 'd',
+            4 => 'e',
+            5 => 'f',
+            6 => 'g',
+            7 => 'h',
+            _ => panic!("Invalid x position"),
+        };
+        let y = match self.y {
+            0 => '1',
+            1 => '2',
+            2 => '3',
+            3 => '4',
+            4 => '5',
+            5 => '6',
+            6 => '7',
+            7 => '8',
+            _ => panic!("Invalid y position"),
+        };
+        write!(f, "{}{}", x, y)
+    }
 }
 
 impl FromStr for Position {

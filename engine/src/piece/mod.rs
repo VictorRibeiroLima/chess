@@ -131,6 +131,23 @@ impl ChessPiece {
 
         return legal_movement;
     }
+
+    /// Returns a list of legal moves for the piece at the given position
+    pub fn legal_moves(&self, from: Position, board: &Board) -> Vec<Position> {
+        let mut legal_moves = Vec::new();
+
+        for x in 0..8 {
+            for y in 0..8 {
+                let to = Position { x, y };
+
+                if self.can_move(from, to, board) {
+                    legal_moves.push(to);
+                }
+            }
+        }
+
+        legal_moves
+    }
 }
 
 fn can_move_pawn(piece: &ChessPiece, from: &Position, to: &Position, board: &Board) -> bool {
@@ -171,14 +188,14 @@ fn can_move_bishop(piece: &ChessPiece, from: &Position, to: &Position, board: &B
     let x_diff = (to.x - from.x).abs();
     let y_diff = (to.y - from.y).abs();
 
+    if x_diff != y_diff {
+        return false;
+    }
+
     let piece_at_position = board.get_piece_at(to);
     let color = piece.color;
 
     let is_path_clear = board.is_diagonal_path_clean(from, to);
-
-    if x_diff != y_diff {
-        return false;
-    }
 
     if !is_path_clear {
         return false;
