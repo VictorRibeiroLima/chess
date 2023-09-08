@@ -280,3 +280,4 @@ fn test_should_create_checkmate() {
         panic!("Expected checkmate");
     }
 }
+

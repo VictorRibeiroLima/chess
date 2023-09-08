@@ -240,6 +240,27 @@ impl Board {
         }
     }
 
+    pub fn creates_check(&self, from: Position, to: Position) -> bool {
+        let piece = self.get_piece_at(&from).cloned();
+        if from == to {
+            return false;
+        }
+        match piece {
+            Some(piece) => {
+                let mut board = self.clone();
+                let removed_piece = board.make_movement(piece, from, to);
+                let game_over = Board::game_over(removed_piece);
+
+                if game_over {
+                    return false;
+                }
+                let is_king_in_check = board.is_king_in_check(piece.get_color());
+                return is_king_in_check;
+            }
+            None => false,
+        }
+    }
+
     fn is_king_in_check(&self, king_color: Color) -> bool {
         let king_position = self.find_king_position(king_color).unwrap();
         let mut is_check = false;

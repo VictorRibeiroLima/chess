@@ -129,7 +129,7 @@ impl ChessPiece {
             }
         }
 
-        return legal_movement;
+        return !board.creates_check(from, to);
     }
 
     /// Returns a list of legal moves for the piece at the given position
