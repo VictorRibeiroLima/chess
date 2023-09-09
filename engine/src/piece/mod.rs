@@ -171,8 +171,6 @@ impl ChessPiece {
         let piece_at_position = board.get_piece_at(to);
         let color = self.color;
 
-        //TODO: en passant
-
         match (x_diff.abs(), y_diff, piece_at_position) {
             // No piece at the destination
             (0, 1, None) if color == Color::White => Ok(OkMovement::Valid((*from, *to))),

@@ -30,7 +30,6 @@ impl Error for MovementError {}
 /// Valid((Position, Position)) - A valid movement (from, to)
 /// Capture((Position, Position)) - A valid capture movement (from, to)
 /// EnPassant((Position, Position)) - A valid en passant movement (from, to)
-/// Promotion((Position, Position)) - A valid promotion movement (from, to)
 /// Castling((Position, Position), (Position, Position)) - A valid castling movement (king, rock) (from, to)
 /// InitialDoubleAdvance((Position, Position)) - A valid initial double advance of a pawn movement (from, to)
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -38,7 +37,6 @@ pub enum OkMovement {
     Valid((Position, Position)),
     Capture((Position, Position)),
     EnPassant((Position, Position)),
-    Promotion((Position, Position)),
     Castling((Position, Position), (Position, Position)),
     InitialDoubleAdvance((Position, Position)),
 }

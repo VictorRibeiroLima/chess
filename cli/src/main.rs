@@ -3,7 +3,10 @@ use std::{
     str::FromStr,
 };
 
-use engine::{board::Board, piece::position::Position};
+use engine::{
+    board::Board,
+    piece::{position::Position, ChessPiece},
+};
 
 fn main() {
     println!("Welcome to Rust Chess!");
@@ -11,31 +14,59 @@ fn main() {
     let mut board = Board::new();
     println!("{}", board);
     while board.get_winner().is_none() {
-        let input = get_input();
-        let moves: Vec<&str> = input.trim().split(" ").collect();
-        if moves.len() != 2 {
-            println!("Invalid input");
-            continue;
+        let promotion = board.get_promotion();
+        if promotion.is_some() {
+            promote_piece(&mut board);
+        } else {
+            move_piece(&mut board);
         }
-        let moves = input_to_moves(moves);
-        let (from, to) = match moves {
-            Some(moves) => moves,
-            None => {
-                println!("Invalid input");
-                continue;
-            }
-        };
-        let moved = board.move_piece(from, to);
-        if !moved {
-            println!("Invalid move");
-            continue;
-        }
+
         println!("{}", board);
     }
 
     let winner = board.get_winner().unwrap();
 
     println!("{} wins!", winner);
+}
+
+fn promote_piece(board: &mut Board) {
+    println!("Promote a piece");
+    println!("Options: Q, R, B, K");
+    let input = get_input();
+    let turn = board.get_turn();
+
+    let piece = match input.trim() {
+        "Q" => ChessPiece::create_queen(turn),
+        "R" => ChessPiece::create_rook(turn),
+        "B" => ChessPiece::create_bishop(turn),
+        "K" => ChessPiece::create_knight(turn),
+        _ => {
+            println!("Invalid input");
+            return;
+        }
+    };
+    board.promote(piece);
+}
+
+fn move_piece(board: &mut Board) {
+    let input = get_input();
+    let moves: Vec<&str> = input.trim().split(" ").collect();
+    if moves.len() != 2 {
+        println!("Invalid input");
+        return;
+    }
+    let moves = input_to_moves(moves);
+    let (from, to) = match moves {
+        Some(moves) => moves,
+        None => {
+            println!("Invalid input");
+            return;
+        }
+    };
+    let moved = board.move_piece(from, to);
+    if !moved {
+        println!("Invalid move");
+    }
 }
 
 fn get_input() -> String {

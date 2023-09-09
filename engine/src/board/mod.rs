@@ -15,6 +15,7 @@ pub struct Board {
     winner: Option<Color>,
     check: Option<Color>,
     last_move: Option<Movement>,
+    promotion: Option<Position>,
 }
 
 impl fmt::Display for Board {
@@ -58,6 +59,7 @@ impl Board {
             winner: None,
             check: None,
             last_move: None,
+            promotion: None,
         }
     }
 
@@ -67,6 +69,7 @@ impl Board {
         self.winner = None;
         self.check = None;
         self.last_move = None;
+        self.promotion = None;
     }
 
     #[cfg(test)]
@@ -82,6 +85,7 @@ impl Board {
             winner: None,
             check,
             last_move,
+            promotion: None,
         }
     }
 
@@ -112,10 +116,41 @@ impl Board {
         self.last_move
     }
 
+    pub fn get_promotion(&self) -> Option<Position> {
+        self.promotion
+    }
+
+    pub fn promote(&mut self, piece: ChessPiece) {
+        // can't promote to a pawn
+        if piece.get_type() == Type::Pawn {
+            return;
+        }
+
+        if let Some(position) = self.promotion {
+            self.pieces[position.y as usize][position.x as usize] = Some(piece);
+            self.promotion = None;
+            self.change_turn();
+            let enemy_color = self.next_turn();
+            if self.is_king_in_check(enemy_color) {
+                self.check = Some(enemy_color);
+                let is_checkmate = self.is_checkmate(enemy_color);
+                if is_checkmate {
+                    self.winner = Some(self.turn);
+                }
+            } else {
+                self.check = None;
+            }
+        }
+    }
+
     pub fn move_piece(&mut self, from: Position, to: Position) -> bool {
         let piece = self.get_piece_at(&from).cloned();
         if from == to {
             self.last_move = Some(Err(MovementError::SamePosition));
+            return false;
+        }
+        let promotion = self.promotion.is_some();
+        if promotion {
             return false;
         }
         match piece {
@@ -129,6 +164,7 @@ impl Board {
                 let can_move = movement.is_ok();
                 if can_move {
                     let movement = movement.unwrap();
+                    let removed_piece = self.make_movement(piece, from, to);
                     match movement {
                         OkMovement::EnPassant((from, to)) => {
                             let enemy_pawn_position = Position { x: to.x, y: from.y };
@@ -145,15 +181,16 @@ impl Board {
                             self.pieces[rock_from.y as usize][rock_from.x as usize] = None;
                             self.pieces[rock_to.y as usize][rock_to.x as usize] = Some(rock);
                         }
+                        OkMovement::Capture(_) => {
+                            let game_over = Board::game_over(removed_piece);
+
+                            if game_over {
+                                self.winner = Some(self.turn);
+                                return true;
+                            }
+                        }
                         _ => {}
                     };
-                    let removed_piece = self.make_movement(piece, from, to);
-                    let game_over = Board::game_over(removed_piece);
-
-                    if game_over {
-                        self.winner = Some(self.turn);
-                        return true;
-                    }
 
                     let enemy_color = self.next_turn();
 
@@ -164,9 +201,16 @@ impl Board {
                             self.winner = Some(self.turn);
                             return true;
                         }
+                    } else {
+                        self.check = None;
                     }
 
-                    self.change_turn();
+                    let promotion = self.check_promotion(piece, to);
+                    if promotion {
+                        self.promotion = Some(to);
+                    } else {
+                        self.change_turn();
+                    }
                 }
                 return can_move;
             }
@@ -397,6 +441,19 @@ impl Board {
         }
 
         return false;
+    }
+
+    fn check_promotion(&self, piece: ChessPiece, target: Position) -> bool {
+        let piece_type = piece.get_type();
+        let piece_color = piece.get_color();
+        if piece_type == Type::Pawn {
+            if (piece_color == Color::White && target.y == 7)
+                || (piece_color == Color::Black && target.y == 0)
+            {
+                return true;
+            }
+        }
+        false
     }
 
     fn initial_pieces_setup() -> [[Option<ChessPiece>; 8]; 8] {
