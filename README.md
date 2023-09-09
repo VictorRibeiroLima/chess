@@ -19,10 +19,9 @@
 - [x] King check
 - [x] King checkmate
 - [ ] King stalemate
-- [ ] King draw
-- [ ] King threefold repetition
-- [ ] King fifty-move rule
-- [ ] King dead position
+- [ ] Threefold repetition
+- [ ] Fifty-move rule
+- [ ] Dead position
 
 ## Chess AI 
 
