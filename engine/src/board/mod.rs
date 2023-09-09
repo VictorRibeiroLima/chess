@@ -135,6 +135,16 @@ impl Board {
                             self.pieces[enemy_pawn_position.y as usize]
                                 [enemy_pawn_position.x as usize] = None;
                         }
+                        OkMovement::Castling(_, rock) => {
+                            let rock_from = rock.0;
+                            let rock_to = rock.1;
+
+                            let mut rock =
+                                self.pieces[rock_from.y as usize][rock_from.x as usize].unwrap();
+                            rock.moved = true;
+                            self.pieces[rock_from.y as usize][rock_from.x as usize] = None;
+                            self.pieces[rock_to.y as usize][rock_to.x as usize] = Some(rock);
+                        }
                         _ => {}
                     };
                     let removed_piece = self.make_movement(piece, from, to);
@@ -294,31 +304,28 @@ impl Board {
         }
     }
 
-    fn is_king_in_check(&self, king_color: Color) -> bool {
-        let king_position = self.find_king_position(king_color).unwrap();
-        let mut is_check = false;
-
+    pub fn is_position_been_attacked(&self, target: Position, color: Color) -> bool {
         for y in 0..8 {
             for x in 0..8 {
                 let position = Position { x, y };
                 let piece = self.get_piece_at(&position);
                 if let Some(piece) = piece {
                     let piece_color = piece.get_color();
-                    if piece_color != king_color {
-                        let movement = piece.can_move(position, king_position, self);
+                    if piece_color != color {
+                        let movement = piece.can_move(position, target, self);
                         let can_move = movement.is_ok();
                         if can_move {
-                            is_check = true;
+                            return true;
                         }
                     }
                 }
             }
         }
 
-        is_check
+        false
     }
 
-    pub fn is_checkmate(&self, player_color: Color) -> bool {
+    fn is_checkmate(&self, player_color: Color) -> bool {
         for y in 0..8 {
             for x in 0..8 {
                 if let Some(piece) = self.pieces[y][x] {
@@ -337,6 +344,16 @@ impl Board {
         }
 
         true // No legal moves can remove the check, it's checkmate
+    }
+
+    fn is_king_in_check(&self, king_color: Color) -> bool {
+        // unwrap is safe because the king is always on the board.
+        // can cause troubles in bad initialized boards (like the one in the tests)
+        let king_position = self.find_king_position(king_color).unwrap();
+
+        let is_check = self.is_position_been_attacked(king_position, king_color);
+
+        is_check
     }
 
     fn find_king_position(&self, color: Color) -> Option<Position> {
