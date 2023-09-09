@@ -3,6 +3,7 @@ use std::str::FromStr;
 use crate::{
     board::Board,
     piece::{position::Position, ChessPiece, Color},
+    result::{MovementError, OkMovement},
 };
 
 #[test]
@@ -279,4 +280,96 @@ fn test_should_create_checkmate() {
     } else {
         panic!("Expected checkmate");
     }
+}
+
+#[test]
+fn test_should_mark_double_advance() {
+    let mut board = Board::new();
+    let from = Position::from_str("e2").unwrap();
+    let to = Position::from_str("e4").unwrap();
+
+    assert!(board.move_piece(from, to));
+    let last_move = board.get_last_move();
+    let last_move = last_move.unwrap().unwrap();
+    assert_eq!(last_move, OkMovement::InitialDoubleAdvance((from, to)));
+}
+
+#[test]
+fn test_en_passant() {
+    let mut board = Board::new();
+    let from = Position::from_str("e2").unwrap();
+    let to = Position::from_str("e4").unwrap();
+
+    assert!(board.move_piece(from, to));
+    let from = Position::from_str("d7").unwrap();
+    let to = Position::from_str("d5").unwrap();
+
+    assert!(board.move_piece(from, to));
+    let from = Position::from_str("e4").unwrap();
+    let to = Position::from_str("d5").unwrap();
+
+    assert!(board.move_piece(from, to));
+
+    let from = Position::from_str("e7").unwrap();
+    let to = Position::from_str("e5").unwrap();
+
+    assert!(board.move_piece(from, to));
+
+    let from = Position::from_str("d5").unwrap();
+    let to = Position::from_str("e6").unwrap();
+
+    assert!(board.move_piece(from, to));
+
+    let last_move = board.get_last_move();
+    let last_move = last_move.unwrap().unwrap();
+    assert_eq!(last_move, OkMovement::EnPassant((from, to)));
+}
+
+/*
+  see: https://en.wikipedia.org/wiki/Rules_of_chess#En_passant
+  When a pawn advances two squares on its initial move and ends the turn adjacent to an enemy pawn on the
+  same rank, it may be captured en passant by the enemy pawn as if it had moved only one square.
+  This capture is legal only on the move immediately following the pawn's advance.
+*/
+#[test]
+fn test_missed_en_passant() {
+    let mut board = Board::new();
+    let from = Position::from_str("e2").unwrap();
+    let to = Position::from_str("e4").unwrap();
+
+    assert!(board.move_piece(from, to));
+    let from = Position::from_str("d7").unwrap();
+    let to = Position::from_str("d5").unwrap();
+
+    assert!(board.move_piece(from, to));
+    let from = Position::from_str("e4").unwrap();
+    let to = Position::from_str("d5").unwrap();
+
+    assert!(board.move_piece(from, to));
+
+    let from = Position::from_str("e7").unwrap();
+    let to = Position::from_str("e5").unwrap();
+
+    assert!(board.move_piece(from, to));
+
+    let from = Position::from_str("a2").unwrap();
+    let to = Position::from_str("a4").unwrap();
+
+    assert!(board.move_piece(from, to));
+
+    let from = Position::from_str("a7").unwrap();
+    let to = Position::from_str("a5").unwrap();
+
+    assert!(board.move_piece(from, to));
+
+    //En passant is not possible anymore
+
+    let from = Position::from_str("d5").unwrap();
+    let to = Position::from_str("e6").unwrap();
+
+    assert!(!board.move_piece(from, to));
+
+    let last_move = board.get_last_move();
+    let last_move = last_move.unwrap().unwrap_err();
+    assert_eq!(last_move, MovementError::InvalidMovement);
 }
