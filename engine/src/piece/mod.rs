@@ -113,6 +113,9 @@ impl ChessPiece {
     }
 
     pub fn can_move(&self, from: Position, to: Position, board: &Board) -> Movement {
+        if from == to {
+            return Err(MovementError::SamePosition);
+        }
         let movement = match self.piece_type {
             Type::Pawn => can_move_pawn(self, &from, &to, board),
             Type::Bishop => can_move_bishop(self, &from, &to, board),
@@ -202,10 +205,10 @@ fn can_move_pawn(piece: &ChessPiece, from: &Position, to: &Position, board: &Boa
 
         // Capture diagonally (forward for white, backward for black)
         (1, 1, Some(other_piece)) if color == Color::White && color != other_piece.color => {
-            Ok(OkMovement::Valid((*from, *to)))
+            Ok(OkMovement::Capture((*from, *to)))
         }
         (1, -1, Some(other_piece)) if color == Color::Black && color != other_piece.color => {
-            Ok(OkMovement::Valid((*from, *to)))
+            Ok(OkMovement::Capture((*from, *to)))
         }
 
         //EnPassant
@@ -293,7 +296,7 @@ fn can_move_bishop(piece: &ChessPiece, from: &Position, to: &Position, board: &B
         Some(other_piece) => {
             let capture = color != other_piece.color;
             if capture {
-                Ok(OkMovement::Valid((*from, *to)))
+                Ok(OkMovement::Capture((*from, *to)))
             } else {
                 Err(MovementError::InvalidMovement)
             }
@@ -326,7 +329,7 @@ fn can_move_rock(piece: &ChessPiece, from: &Position, to: &Position, board: &Boa
         Some(other_piece) => {
             let capture = piece.color != other_piece.color;
             if capture {
-                Ok(OkMovement::Valid((*from, *to)))
+                Ok(OkMovement::Capture((*from, *to)))
             } else {
                 Err(MovementError::InvalidMovement)
             }
@@ -356,7 +359,7 @@ pub fn can_move_king(
         Some(other_piece) => {
             let capture = piece.color != other_piece.color;
             if capture {
-                Ok(OkMovement::Valid((*from, *to)))
+                Ok(OkMovement::Capture((*from, *to)))
             } else {
                 Err(MovementError::InvalidMovement)
             }
@@ -388,7 +391,7 @@ pub fn can_move_knight(
         Some(other_piece) => {
             let capture = piece.color != other_piece.color;
             if capture {
-                Ok(OkMovement::Valid((*from, *to)))
+                Ok(OkMovement::Capture((*from, *to)))
             } else {
                 Err(MovementError::InvalidMovement)
             }
@@ -428,7 +431,7 @@ pub fn can_move_queen(
         Some(other_piece) => {
             let capture = color != other_piece.color;
             if capture {
-                Ok(OkMovement::Valid((*from, *to)))
+                Ok(OkMovement::Capture((*from, *to)))
             } else {
                 Err(MovementError::InvalidMovement)
             }

@@ -373,3 +373,259 @@ fn test_missed_en_passant() {
     let last_move = last_move.unwrap().unwrap_err();
     assert_eq!(last_move, MovementError::InvalidMovement);
 }
+
+#[test]
+fn test_should_checkmate(){
+    let first_white_row = [
+        None, 
+        None,
+        None,
+        None,
+        None,
+        Some(ChessPiece::create_rook(Color::White)),
+        Some(ChessPiece::create_king(Color::White)),
+        None
+    ];
+
+    let second_white_row = [
+        None, 
+        None,
+        None,
+        None,
+        None,
+        Some(ChessPiece::create_pawn(Color::White)),
+        Some(ChessPiece::create_pawn(Color::White)),
+        Some(ChessPiece::create_queen(Color::Black))
+    ];
+
+    let fifth_row = [
+        None, 
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        Some(ChessPiece::create_rook(Color::Black))
+    ];
+
+    let last_row = [
+        None, 
+        None,
+        None,
+        None,
+        Some(ChessPiece::create_king(Color::Black)),
+        None,
+        None,
+        None,
+    ];
+
+    let pieces: [[Option<ChessPiece>; 8]; 8] = [
+        first_white_row,
+        second_white_row,
+        [None; 8],
+        [None; 8],
+        fifth_row,
+        [None; 8],
+        [None; 8],
+        last_row
+    ];
+
+    let mut board = Board::mock(pieces, Color::Black, None, None);
+
+    let from = Position::from_str("h2").unwrap();
+    let to = Position::from_str("h1").unwrap();
+
+    assert!(board.move_piece(from, to));
+
+    let last_move = board.get_last_move();
+    let last_move = last_move.unwrap().unwrap();
+
+    assert_eq!(last_move, OkMovement::Valid((from, to)));
+    assert_eq!(board.get_winner(), Some(Color::Black));
+}
+
+#[test]
+fn test_fools_mate(){
+    let mut board = Board::new();
+
+    let from = Position::from_str("f2").unwrap();
+    let to = Position::from_str("f3").unwrap();
+
+    assert!(board.move_piece(from, to));
+
+    let from = Position::from_str("e7").unwrap();
+    let to = Position::from_str("e5").unwrap();
+
+    assert!(board.move_piece(from, to));
+
+    let from = Position::from_str("g2").unwrap();
+    let to = Position::from_str("g4").unwrap();
+
+    assert!(board.move_piece(from, to));
+
+    let from = Position::from_str("d8").unwrap();
+    let to = Position::from_str("h4").unwrap();
+
+    assert!(board.move_piece(from, to));
+
+    assert_eq!(board.get_winner(), Some(Color::Black));
+}
+
+#[test]
+fn test_invalid_check_move() {
+    let eight_row = [
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        Some(ChessPiece::create_king(Color::Black)),
+        None,
+    ];
+
+    let first_row = [
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        Some(ChessPiece::create_king(Color::White)),
+        Some(ChessPiece::create_rook(Color::White)),
+    ];
+
+    let pieces: [[Option<ChessPiece>; 8]; 8] = [
+        first_row,
+        [None; 8],
+        [None; 8],
+        [None; 8],
+        [None; 8],
+        [None; 8],
+        [None; 8],
+        eight_row,
+    ];
+
+    let mut board = Board::mock(pieces, Color::Black, None, None);
+
+    let from = Position::from_str("g8").unwrap();
+    let to = Position::from_str("h8").unwrap();
+
+    assert!(!board.move_piece(from, to));
+
+    let last_move = board.get_last_move();
+    let last_move = last_move.unwrap().unwrap_err();
+
+    assert_eq!(last_move, MovementError::CreatesOwnCheck);
+}
+
+#[test]
+fn test_d_byrne_vs_fischer_checkmate(){
+    let eight_row = [
+        None,
+        Some(ChessPiece::create_queen(Color::White)),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+    ];
+
+    let seventh_row = [
+        None,
+        None,
+        None,
+        None,
+        None,
+        Some(ChessPiece::create_pawn(Color::Black)),
+        Some(ChessPiece::create_king(Color::Black)),
+        None
+    ];
+
+    let sixth_row = [
+        None,
+        None,
+        Some(ChessPiece::create_pawn(Color::Black)),
+        None,
+        None,
+        None,
+        Some(ChessPiece::create_pawn(Color::Black)),
+        None
+    ];
+
+    let fifth_row = [
+        None,
+        Some(ChessPiece::create_pawn(Color::Black)),
+        None,
+        None,
+        Some(ChessPiece::create_knight(Color::White)),
+        None,
+        None,
+        Some(ChessPiece::create_pawn(Color::Black)),
+    ];
+
+    let fourth_row = [
+        None,
+        Some(ChessPiece::create_bishop(Color::Black)),
+        None,
+        None,
+        None,
+        None,
+        None,
+        Some(ChessPiece::create_pawn(Color::White)),
+    ];
+
+    let third_row = [
+        None,
+        Some(ChessPiece::create_bishop(Color::Black)),
+        Some(ChessPiece::create_knight(Color::Black)),
+        None,
+        None,
+        None,
+        None,
+        None
+    ];
+
+    let second_row = [
+        Some(ChessPiece::create_rook(Color::Black)),
+        None,
+        None,
+        None,
+        None,
+        None,
+        Some(ChessPiece::create_pawn(Color::White)),
+        None
+    ];
+
+    let first_row = [
+        None,
+        None,
+        Some(ChessPiece::create_king(Color::White)),
+        None,
+        None,
+        None,
+        None,
+        None
+    ];
+
+    let pieces: [[Option<ChessPiece>; 8]; 8] = [
+        first_row,
+        second_row,
+        third_row,
+        fourth_row,
+        fifth_row,
+        sixth_row,
+        seventh_row,
+        eight_row,
+    ];
+
+    let mut board = Board::mock(pieces, Color::Black, None, None);
+
+    let from = Position::from_str("a2").unwrap();
+    let to = Position::from_str("c2").unwrap();
+
+    assert!(board.move_piece(from, to));
+    assert_eq!(board.get_winner(), Some(Color::Black));
+}

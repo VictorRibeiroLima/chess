@@ -165,6 +165,10 @@ impl Board {
     }
 
     pub fn get_piece_at(&self, position: &Position) -> Option<&ChessPiece> {
+        // Invalid position
+        if position.x < 0 || position.x > 7 || position.y < 0 || position.y > 7 {
+            return None;
+        }
         let piece = self.pieces[position.y as usize][position.x as usize].as_ref();
         piece
     }
