@@ -341,68 +341,10 @@ impl ChessPiece {
         let x_diff = to.x - from.x;
         let y_diff = to.y - from.y;
 
+        //castling
+        //see: https://en.wikipedia.org/wiki/Castling
         if y_diff == 0 && (x_diff == 2 || x_diff == -2) {
-            //castling
-            if self.moved {
-                return Err(MovementError::InvalidMovement);
-            }
-
-            let rock = match x_diff {
-                2 => board.get_piece_at(&Position { x: 7, y: from.y }),
-                -2 => board.get_piece_at(&Position { x: 0, y: from.y }),
-                _ => return Err(MovementError::InvalidMovement),
-            };
-
-            let rock = match rock {
-                Some(rock) => rock,
-                None => return Err(MovementError::InvalidMovement),
-            };
-
-            if rock.moved {
-                return Err(MovementError::InvalidMovement);
-            }
-
-            let is_path_clear = match x_diff {
-                2 => board.is_horizontal_path_clean(from, &Position { x: 6, y: from.y }),
-                -2 => board.is_horizontal_path_clean(from, &Position { x: 2, y: from.y }),
-                _ => return Err(MovementError::InvalidMovement),
-            };
-
-            if !is_path_clear {
-                return Err(MovementError::InvalidMovement);
-            }
-
-            let path_under_attack = match x_diff {
-                2 => {
-                    board.is_position_been_attacked(Position { x: 4, y: from.y }, self.color)
-                        || board.is_position_been_attacked(Position { x: 5, y: from.y }, self.color)
-                        || board.is_position_been_attacked(Position { x: 6, y: from.y }, self.color)
-                }
-                -2 => {
-                    board.is_position_been_attacked(Position { x: 1, y: from.y }, self.color)
-                        || board.is_position_been_attacked(Position { x: 2, y: from.y }, self.color)
-                        || board.is_position_been_attacked(Position { x: 3, y: from.y }, self.color)
-                }
-                _ => return Err(MovementError::InvalidMovement),
-            };
-
-            if path_under_attack {
-                return Err(MovementError::InvalidMovement);
-            }
-
-            let rock_from = match x_diff {
-                2 => Position { x: 7, y: from.y },
-                -2 => Position { x: 0, y: from.y },
-                _ => return Err(MovementError::InvalidMovement),
-            };
-
-            let rock_to = match x_diff {
-                2 => Position { x: 5, y: from.y },
-                -2 => Position { x: 3, y: from.y },
-                _ => return Err(MovementError::InvalidMovement),
-            };
-
-            return Ok(OkMovement::Castling((*from, *to), (rock_from, rock_to)));
+            return self.can_perform_castling(from, to, board);
         }
 
         let x_diff = x_diff.abs();
@@ -487,5 +429,65 @@ impl ChessPiece {
                 }
             }
         }
+    }
+
+    fn can_perform_castling(&self, from: &Position, to: &Position, board: &Board) -> Movement {
+        let x_diff = to.x - from.x;
+
+        let rock_from = match x_diff {
+            2 => Position { x: 7, y: from.y },
+            -2 => Position { x: 0, y: from.y },
+            _ => return Err(MovementError::InvalidMovement),
+        };
+        let rock_to = match x_diff {
+            2 => Position { x: 5, y: from.y },
+            -2 => Position { x: 3, y: from.y },
+            _ => return Err(MovementError::InvalidMovement),
+        };
+
+        //1. The king and the chosen rook are on the player's first rank.
+        let rock = board.get_piece_at(&rock_from);
+        let rock = match rock {
+            Some(rock) => rock,
+            None => return Err(MovementError::InvalidMovement),
+        };
+
+        //2. Neither the king nor the chosen rook has previously moved.
+        if self.moved {
+            return Err(MovementError::InvalidMovement);
+        }
+        if rock.moved {
+            return Err(MovementError::InvalidMovement);
+        }
+
+        //3. There are no pieces between the king and the chosen rook.
+        let is_path_clear = match x_diff {
+            2 => board.is_horizontal_path_clean(from, &Position { x: 6, y: from.y }),
+            -2 => board.is_horizontal_path_clean(from, &Position { x: 2, y: from.y }),
+            _ => return Err(MovementError::InvalidMovement),
+        };
+        if !is_path_clear {
+            return Err(MovementError::InvalidMovement);
+        }
+
+        //4. The king is not currently in check and does not pass through a square that is attacked by an enemy piece.
+        let path_under_attack = match x_diff {
+            2 => {
+                board.is_position_been_attacked(Position { x: 4, y: from.y }, self.color)
+                    || board.is_position_been_attacked(Position { x: 5, y: from.y }, self.color)
+                    || board.is_position_been_attacked(Position { x: 6, y: from.y }, self.color)
+            }
+            -2 => {
+                board.is_position_been_attacked(Position { x: 2, y: from.y }, self.color)
+                    || board.is_position_been_attacked(Position { x: 3, y: from.y }, self.color)
+                    || board.is_position_been_attacked(Position { x: 4, y: from.y }, self.color)
+            }
+            _ => return Err(MovementError::InvalidMovement),
+        };
+        if path_under_attack {
+            return Err(MovementError::InvalidMovement);
+        }
+
+        return Ok(OkMovement::Castling((*from, *to), (rock_from, rock_to)));
     }
 }

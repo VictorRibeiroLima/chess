@@ -966,3 +966,288 @@ fn test_blocked_kingside_castling() {
     let to = Position::from_str("g1").unwrap();
     assert!(!board.move_piece(from, to));
 }
+
+#[test]
+fn test_blocked_queen_side_castling() {
+    let mut board = Board::new();
+
+    let from = Position::from_str("e1").unwrap();
+    let to = Position::from_str("c1").unwrap();
+    assert!(!board.move_piece(from, to));
+}
+
+#[test]
+
+fn test_attacked_king_castling() {
+    let first_row = [
+        Some(ChessPiece::create_rook(Color::White)),
+        None,
+        None,
+        Some(ChessPiece::create_king(Color::Black)),
+        Some(ChessPiece::create_king(Color::White)),
+        None,
+        None,
+        Some(ChessPiece::create_rook(Color::White)),
+    ];
+
+    let pieces = [
+        first_row, [None; 8], [None; 8], [None; 8], [None; 8], [None; 8], [None; 8], [None; 8],
+    ];
+
+    let mut board = Board::mock(pieces, Color::White, None, None);
+
+    let from = Position::from_str("e1").unwrap();
+    let to = Position::from_str("g1").unwrap();
+
+    assert!(!board.move_piece(from, to));
+
+    let last_move = board.get_last_move();
+    let last_move = last_move.unwrap().unwrap_err();
+
+    assert_eq!(last_move, MovementError::InvalidMovement);
+}
+
+#[test]
+fn test_attacked_path_queen_side_castling() {
+    let first_row = [
+        Some(ChessPiece::create_rook(Color::White)),
+        None,
+        None,
+        None,
+        Some(ChessPiece::create_king(Color::White)),
+        None,
+        None,
+        Some(ChessPiece::create_rook(Color::White)),
+    ];
+
+    let last_row = [
+        None,
+        None,
+        Some(ChessPiece::create_rook(Color::Black)),
+        None,
+        Some(ChessPiece::create_king(Color::Black)),
+        None,
+        None,
+        Some(ChessPiece::create_rook(Color::Black)),
+    ];
+
+    let pieces = [
+        first_row, [None; 8], [None; 8], [None; 8], [None; 8], [None; 8], [None; 8], last_row,
+    ];
+
+    let mut board = Board::mock(pieces, Color::White, None, None);
+
+    let from = Position::from_str("e1").unwrap();
+    let to = Position::from_str("c1").unwrap();
+
+    assert!(!board.move_piece(from, to));
+
+    let last_move = board.get_last_move();
+    let last_move = last_move.unwrap().unwrap_err();
+
+    assert_eq!(last_move, MovementError::InvalidMovement);
+
+    println!("{}", board);
+}
+
+#[test]
+fn test_attacked_path_queen_side_castling_2() {
+    let first_row = [
+        Some(ChessPiece::create_rook(Color::White)),
+        None,
+        None,
+        None,
+        Some(ChessPiece::create_king(Color::White)),
+        None,
+        None,
+        Some(ChessPiece::create_rook(Color::White)),
+    ];
+
+    let last_row = [
+        None,
+        None,
+        None,
+        Some(ChessPiece::create_rook(Color::Black)),
+        Some(ChessPiece::create_king(Color::Black)),
+        None,
+        None,
+        Some(ChessPiece::create_rook(Color::Black)),
+    ];
+
+    let pieces = [
+        first_row, [None; 8], [None; 8], [None; 8], [None; 8], [None; 8], [None; 8], last_row,
+    ];
+
+    let mut board = Board::mock(pieces, Color::White, None, None);
+
+    let from = Position::from_str("e1").unwrap();
+    let to = Position::from_str("c1").unwrap();
+
+    assert!(!board.move_piece(from, to));
+
+    let last_move = board.get_last_move();
+    let last_move = last_move.unwrap().unwrap_err();
+
+    assert_eq!(last_move, MovementError::InvalidMovement);
+}
+
+#[test]
+fn test_attacked_path_from_rock_queen_side_castling_should_happen() {
+    let first_row = [
+        Some(ChessPiece::create_rook(Color::White)),
+        None,
+        None,
+        None,
+        Some(ChessPiece::create_king(Color::White)),
+        None,
+        None,
+        Some(ChessPiece::create_rook(Color::White)),
+    ];
+
+    let last_row = [
+        None,
+        Some(ChessPiece::create_rook(Color::Black)),
+        None,
+        None,
+        Some(ChessPiece::create_king(Color::Black)),
+        None,
+        None,
+        Some(ChessPiece::create_rook(Color::Black)),
+    ];
+
+    let pieces = [
+        first_row, [None; 8], [None; 8], [None; 8], [None; 8], [None; 8], [None; 8], last_row,
+    ];
+
+    let mut board = Board::mock(pieces, Color::White, None, None);
+
+    let from = Position::from_str("e1").unwrap();
+    let to = Position::from_str("c1").unwrap();
+    assert!(board.move_piece(from, to));
+}
+
+#[test]
+fn test_moved_king_castling() {
+    let first_row = [
+        Some(ChessPiece::create_rook(Color::White)),
+        None,
+        None,
+        None,
+        Some(ChessPiece::create_king(Color::White)),
+        None,
+        None,
+        Some(ChessPiece::create_rook(Color::White)),
+    ];
+
+    let last_row = [
+        Some(ChessPiece::create_rook(Color::Black)),
+        None,
+        None,
+        None,
+        Some(ChessPiece::create_king(Color::Black)),
+        None,
+        None,
+        Some(ChessPiece::create_rook(Color::Black)),
+    ];
+
+    let pieces = [
+        first_row, [None; 8], [None; 8], [None; 8], [None; 8], [None; 8], [None; 8], last_row,
+    ];
+
+    let mut board = Board::mock(pieces, Color::White, None, None);
+
+    let from = Position::from_str("e1").unwrap();
+    let to = Position::from_str("f1").unwrap();
+
+    assert!(board.move_piece(from, to));
+
+    let from = Position::from_str("e8").unwrap();
+    let to = Position::from_str("f8").unwrap();
+
+    assert!(board.move_piece(from, to));
+
+    let from = Position::from_str("f1").unwrap();
+    let to = Position::from_str("e1").unwrap();
+
+    assert!(board.move_piece(from, to));
+
+    let from = Position::from_str("f8").unwrap();
+    let to = Position::from_str("e8").unwrap();
+
+    assert!(board.move_piece(from, to));
+
+    //Same as the initial board but king has moved
+
+    let from = Position::from_str("e1").unwrap();
+    let to = Position::from_str("g1").unwrap();
+
+    assert!(!board.move_piece(from, to));
+
+    let last_move = board.get_last_move();
+    let last_move = last_move.unwrap().unwrap_err();
+
+    assert_eq!(last_move, MovementError::InvalidMovement);
+}
+
+#[test]
+fn test_moved_rock_castling() {
+    let first_row = [
+        Some(ChessPiece::create_rook(Color::White)),
+        None,
+        None,
+        None,
+        Some(ChessPiece::create_king(Color::White)),
+        None,
+        None,
+        Some(ChessPiece::create_rook(Color::White)),
+    ];
+
+    let last_row = [
+        Some(ChessPiece::create_rook(Color::Black)),
+        None,
+        None,
+        None,
+        Some(ChessPiece::create_king(Color::Black)),
+        None,
+        None,
+        Some(ChessPiece::create_rook(Color::Black)),
+    ];
+
+    let pieces = [
+        first_row, [None; 8], [None; 8], [None; 8], [None; 8], [None; 8], [None; 8], last_row,
+    ];
+
+    let mut board = Board::mock(pieces, Color::White, None, None);
+
+    let from = Position::from_str("h1").unwrap();
+    let to = Position::from_str("g1").unwrap();
+
+    assert!(board.move_piece(from, to));
+
+    let from = Position::from_str("e8").unwrap();
+    let to = Position::from_str("f8").unwrap();
+
+    assert!(board.move_piece(from, to));
+
+    let from = Position::from_str("g1").unwrap();
+    let to = Position::from_str("h1").unwrap();
+
+    assert!(board.move_piece(from, to));
+
+    let from = Position::from_str("f8").unwrap();
+    let to = Position::from_str("e8").unwrap();
+
+    assert!(board.move_piece(from, to));
+
+    //Same as the initial board but rock has moved
+
+    let from = Position::from_str("e1").unwrap();
+    let to = Position::from_str("g1").unwrap();
+
+    assert!(!board.move_piece(from, to));
+
+    let last_move = board.get_last_move();
+    let last_move = last_move.unwrap().unwrap_err();
+
+    assert_eq!(last_move, MovementError::InvalidMovement);
+}
