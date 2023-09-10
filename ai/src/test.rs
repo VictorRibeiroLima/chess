@@ -54,7 +54,7 @@ mod new_board {
     #[test]
     fn five_depth() {
         let mut board = Board::new();
-        // let num_positions = move_generation_helper(5, &mut board);
+        //let num_positions = move_generation_helper(5, &mut board);
         //assert_eq!(num_positions, 4865609);
     }
 

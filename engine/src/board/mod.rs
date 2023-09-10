@@ -16,6 +16,10 @@ pub struct Board {
     check: Option<Color>,
     last_move: Option<Movement>,
     promotion: Option<Position>,
+    white_king_position: Position,
+    black_king_position: Position,
+    white_attacked_positions: [[bool; 8]; 8],
+    black_attacked_positions: [[bool; 8]; 8],
 }
 
 impl fmt::Display for Board {
@@ -60,16 +64,11 @@ impl Board {
             check: None,
             last_move: None,
             promotion: None,
+            white_king_position: Position { x: 4, y: 0 },
+            black_king_position: Position { x: 4, y: 7 },
+            white_attacked_positions: [[false; 8]; 8],
+            black_attacked_positions: [[false; 8]; 8],
         }
-    }
-
-    pub fn reset(&mut self) {
-        self.turn = Color::White;
-        self.pieces = Board::initial_pieces_setup();
-        self.winner = None;
-        self.check = None;
-        self.last_move = None;
-        self.promotion = None;
     }
 
     #[cfg(test)]
@@ -79,6 +78,27 @@ impl Board {
         check: Option<Color>,
         last_move: Option<Movement>,
     ) -> Board {
+        let mut white_king_position = Position { x: 4, y: 0 };
+        let mut black_king_position = Position { x: 4, y: 7 };
+
+        for y in 0..8 {
+            for x in 0..8 {
+                let position = Position { x, y };
+                let piece = pieces[y as usize][x as usize];
+                if let Some(piece) = piece {
+                    let piece_type = piece.get_type();
+                    let piece_color = piece.get_color();
+                    if piece_type == Type::King {
+                        if piece_color == Color::White {
+                            white_king_position = position;
+                        } else {
+                            black_king_position = position;
+                        }
+                    }
+                }
+            }
+        }
+
         Board {
             turn,
             pieces,
@@ -86,6 +106,10 @@ impl Board {
             check,
             last_move,
             promotion: None,
+            white_king_position,
+            black_king_position,
+            white_attacked_positions: [[false; 8]; 8],
+            black_attacked_positions: [[false; 8]; 8],
         }
     }
 
@@ -124,7 +148,7 @@ impl Board {
         &self.pieces
     }
 
-    //TODO: This is a very expensive operation, it should be cached
+    //TODO: This is a very expensive operation.
     pub fn legal_moves(&self) -> Vec<(Position, Position)> {
         let mut moves = Vec::new();
         if self.promotion.is_some() || self.winner.is_some() {
@@ -376,6 +400,7 @@ impl Board {
         }
     }
 
+    //TODO: keep track of attacked positions of each player to avoid this expensive operation
     pub fn is_position_been_attacked(&self, target: Position, color: Color) -> bool {
         for y in 0..8 {
             for x in 0..8 {
@@ -419,30 +444,18 @@ impl Board {
     }
 
     fn is_king_in_check(&self, king_color: Color) -> bool {
-        // unwrap is safe because the king is always on the board.
-        // can cause troubles in bad initialized boards (like the one in the tests)
-        let king_position = self.find_king_position(king_color).unwrap();
+        let king_position = self.find_king_position(king_color);
 
         let is_check = self.is_position_been_attacked(king_position, king_color);
 
         is_check
     }
 
-    fn find_king_position(&self, color: Color) -> Option<Position> {
-        for y in 0..8 {
-            for x in 0..8 {
-                let position = Position { x, y };
-                let piece = self.get_piece_at(&position);
-                if let Some(piece) = piece {
-                    let piece_type = piece.get_type();
-                    let piece_color = piece.get_color();
-                    if piece_type == Type::King && piece_color == color {
-                        return Some(position);
-                    }
-                }
-            }
+    fn find_king_position(&self, color: Color) -> Position {
+        match color {
+            Color::White => self.white_king_position,
+            Color::Black => self.black_king_position,
         }
-        None
     }
 
     ///Make a movement on the board, and returns the captured piece if there is one
@@ -456,6 +469,14 @@ impl Board {
         let old_piece = self.pieces[to.y as usize][to.x as usize];
         self.pieces[from.y as usize][from.x as usize] = None;
         self.pieces[to.y as usize][to.x as usize] = Some(piece);
+
+        if piece.get_type() == Type::King {
+            if piece.get_color() == Color::White {
+                self.white_king_position = to;
+            } else {
+                self.black_king_position = to;
+            }
+        }
 
         return old_piece;
     }
