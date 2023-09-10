@@ -3,7 +3,11 @@ use engine::{
     piece::{position::Position, ChessPiece},
 };
 
+#[cfg(test)]
+mod test;
+
 pub fn make_move(board: &Board) -> (Position, Position) {
+    let board = *board;
     let valid_moves = board.legal_moves();
     let rand_value = rand::random::<usize>() % valid_moves.len();
     valid_moves[rand_value]

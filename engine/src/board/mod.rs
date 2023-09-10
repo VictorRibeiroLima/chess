@@ -124,6 +124,7 @@ impl Board {
         &self.pieces
     }
 
+    //TODO: This is a very expensive operation, it should be cached
     pub fn legal_moves(&self) -> Vec<(Position, Position)> {
         let mut moves = Vec::new();
         if self.promotion.is_some() || self.winner.is_some() {

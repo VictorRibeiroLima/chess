@@ -147,6 +147,7 @@ impl ChessPiece {
         return movement;
     }
 
+    //TODO: Too expensive, refactor
     /// Returns a list of legal moves for the piece at the given position
     pub fn legal_moves(&self, from: Position, board: &Board) -> Vec<Position> {
         let mut legal_moves = Vec::new();
