@@ -393,8 +393,6 @@ fn test_missed_en_passant() {
 
     assert!(board.move_piece(from, to));
 
-    println!("{}", board);
-
     //En passant is not possible anymore
 
     let from = Position::from_str("d5").unwrap();
@@ -1046,8 +1044,6 @@ fn test_attacked_path_queen_side_castling() {
     let last_move = last_move.unwrap().unwrap_err();
 
     assert_eq!(last_move, MovementError::InvalidMovement);
-
-    println!("{}", board);
 }
 
 #[test]

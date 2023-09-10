@@ -129,22 +129,24 @@ impl ChessPiece {
             return movement;
         }
 
+        let movement = movement.unwrap();
+
         if let Some(check_color) = board.get_check() {
             if check_color == self.color {
-                let check_resolved = board.removes_check(from, to);
+                let check_resolved = board.removes_check(movement);
                 if !check_resolved {
                     return Err(MovementError::CheckNotResolved);
                 }
             }
         }
 
-        let creates_check = board.creates_check(from, to);
+        let creates_check = board.creates_check(movement);
 
         if creates_check {
             return Err(MovementError::CreatesOwnCheck);
         }
 
-        return movement;
+        return Ok(movement);
     }
 
     //TODO: Too expensive, refactor

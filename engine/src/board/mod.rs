@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, str::FromStr};
 
 use crate::{
     piece::{position::Position, ChessPiece, Color, Type},
@@ -216,33 +216,7 @@ impl Board {
                 let can_move = movement.is_ok();
                 if can_move {
                     let movement = movement.unwrap();
-                    let removed_piece = self.make_movement(piece, from, to);
-                    match movement {
-                        OkMovement::EnPassant((from, to)) => {
-                            let enemy_pawn_position = Position { x: to.x, y: from.y };
-                            self.pieces[enemy_pawn_position.y as usize]
-                                [enemy_pawn_position.x as usize] = None;
-                        }
-                        OkMovement::Castling(_, rock) => {
-                            let rock_from = rock.0;
-                            let rock_to = rock.1;
-
-                            let mut rock =
-                                self.pieces[rock_from.y as usize][rock_from.x as usize].unwrap();
-                            rock.moved = true;
-                            self.pieces[rock_from.y as usize][rock_from.x as usize] = None;
-                            self.pieces[rock_to.y as usize][rock_to.x as usize] = Some(rock);
-                        }
-                        OkMovement::Capture(_) => {
-                            let game_over = Board::game_over(removed_piece);
-
-                            if game_over {
-                                self.winner = Some(self.turn);
-                                return true;
-                            }
-                        }
-                        _ => {}
-                    };
+                    self.make_movement(movement);
 
                     let enemy_color = self.next_turn();
 
@@ -358,46 +332,27 @@ impl Board {
         true
     }
 
-    pub fn removes_check(&self, from: Position, to: Position) -> bool {
-        let piece = self.get_piece_at(&from).cloned();
-        if from == to {
-            return false;
-        }
-        match piece {
-            Some(piece) => {
-                let mut board = self.clone();
-                let removed_piece = board.make_movement(piece, from, to);
-                let game_over = Board::game_over(removed_piece);
+    pub fn removes_check(&self, movement: OkMovement) -> bool {
+        let mut board = *self;
+        let moved_piece = board.make_movement(movement);
 
-                if game_over {
-                    return true;
-                }
-                let is_king_in_check = board.is_king_in_check(piece.get_color());
-                return !is_king_in_check;
-            }
-            None => false,
+        if board.get_winner().is_some() {
+            return true;
         }
+        let is_king_in_check = board.is_king_in_check(moved_piece.get_color());
+        return !is_king_in_check;
     }
 
-    pub fn creates_check(&self, from: Position, to: Position) -> bool {
-        let piece = self.get_piece_at(&from).cloned();
-        if from == to {
+    pub fn creates_check(&self, movement: OkMovement) -> bool {
+        let mut board = *self;
+        let moved_piece = board.make_movement(movement);
+
+        if board.get_winner().is_some() {
             return false;
         }
-        match piece {
-            Some(piece) => {
-                let mut board = self.clone();
-                let removed_piece = board.make_movement(piece, from, to);
-                let game_over = Board::game_over(removed_piece);
 
-                if game_over {
-                    return false;
-                }
-                let is_king_in_check = board.is_king_in_check(piece.get_color());
-                return is_king_in_check;
-            }
-            None => false,
-        }
+        let is_king_in_check = board.is_king_in_check(moved_piece.get_color());
+        return is_king_in_check;
     }
 
     //TODO: keep track of attacked positions of each player to avoid this expensive operation
@@ -458,15 +413,41 @@ impl Board {
         }
     }
 
-    ///Make a movement on the board, and returns the captured piece if there is one
-    fn make_movement(
-        &mut self,
-        mut piece: ChessPiece,
-        from: Position,
-        to: Position,
-    ) -> Option<ChessPiece> {
+    ///Make a movement on the board, and returns the moved piece
+    fn make_movement(&mut self, movement: OkMovement) -> ChessPiece {
+        let (from, to) = match movement {
+            OkMovement::EnPassant((from, to)) => {
+                let enemy_pawn_position = Position { x: to.x, y: from.y };
+                self.pieces[enemy_pawn_position.y as usize][enemy_pawn_position.x as usize] = None;
+                (from, to)
+            }
+            OkMovement::Castling(king, rock) => {
+                let king_from = king.0;
+                let king_to = king.1;
+                let rock_from = rock.0;
+                let rock_to = rock.1;
+
+                let mut rock = self.pieces[rock_from.y as usize][rock_from.x as usize].unwrap();
+                rock.moved = true;
+                self.pieces[rock_from.y as usize][rock_from.x as usize] = None;
+                self.pieces[rock_to.y as usize][rock_to.x as usize] = Some(rock);
+                (king_from, king_to)
+            }
+            OkMovement::Capture((from, to)) => {
+                let removed_piece = self.pieces[to.y as usize][to.x as usize];
+                let game_over = Board::game_over(removed_piece);
+
+                if game_over {
+                    self.winner = Some(self.turn);
+                }
+                (from, to)
+            }
+            OkMovement::InitialDoubleAdvance((from, to)) => (from, to),
+            OkMovement::Valid((from, to)) => (from, to),
+        };
+
+        let mut piece = self.pieces[from.y as usize][from.x as usize].unwrap();
         piece.moved = true;
-        let old_piece = self.pieces[to.y as usize][to.x as usize];
         self.pieces[from.y as usize][from.x as usize] = None;
         self.pieces[to.y as usize][to.x as usize] = Some(piece);
 
@@ -476,9 +457,9 @@ impl Board {
             } else {
                 self.black_king_position = to;
             }
-        }
+        };
 
-        return old_piece;
+        return piece;
     }
 
     ///Checks if the removed piece is a king

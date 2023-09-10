@@ -1,7 +1,12 @@
 use engine::board::Board;
 
-fn move_generation_helper(depth: u8, board: &mut Board) -> u64 {
-    if depth == 0 {
+fn move_generation(target: u8, board: &mut Board) -> u64 {
+    let num_positions = move_generation_helper(0, target, board);
+    return num_positions;
+}
+
+fn move_generation_helper(depth: u8, target: u8, board: &mut Board) -> u64 {
+    if depth == target {
         return 1;
     }
 
@@ -11,7 +16,11 @@ fn move_generation_helper(depth: u8, board: &mut Board) -> u64 {
     for (from, to) in legal_moves {
         let mut new_board = *board;
         new_board.move_piece(from, to);
-        num_positions += move_generation_helper(depth - 1, &mut new_board);
+        let poss = move_generation_helper(depth + 1, target, &mut new_board);
+        if depth == 0 {
+            println!("{} -> {} : {}", from, to, poss);
+        }
+        num_positions += poss;
     }
 
     return num_positions;
@@ -21,47 +30,47 @@ fn move_generation_helper(depth: u8, board: &mut Board) -> u64 {
 mod new_board {
     use engine::board::Board;
 
-    use crate::test::move_generation_helper;
+    use crate::test::move_generation;
 
     #[test]
     fn one_depth() {
         let mut board = Board::new();
-        let num_positions = move_generation_helper(1, &mut board);
+        let num_positions = move_generation(1, &mut board);
         assert_eq!(num_positions, 20);
     }
 
     #[test]
     fn two_depth() {
         let mut board = Board::new();
-        let num_positions = move_generation_helper(2, &mut board);
+        let num_positions = move_generation(2, &mut board);
         assert_eq!(num_positions, 400);
     }
 
     #[test]
     fn three_depth() {
         let mut board = Board::new();
-        let num_positions = move_generation_helper(3, &mut board);
+        let num_positions = move_generation(3, &mut board);
         assert_eq!(num_positions, 8902);
     }
 
     #[test]
     fn four_depth() {
         let mut board = Board::new();
-        let num_positions = move_generation_helper(4, &mut board);
+        let num_positions = move_generation(4, &mut board);
         assert_eq!(num_positions, 197281);
     }
 
     #[test]
     fn five_depth() {
         let mut board = Board::new();
-        //let num_positions = move_generation_helper(5, &mut board);
+        //let num_positions = move_generation(5, &mut board);
         //assert_eq!(num_positions, 4865609);
     }
 
     #[test]
     fn six_depth() {
         let mut board = Board::new();
-        //let num_positions = move_generation_helper(6, &mut board);
+        //let num_positions = move_generation(6, &mut board);
         //assert_eq!(num_positions, 119060324);
     }
 }
