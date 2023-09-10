@@ -5,7 +5,7 @@ use std::{
 
 use engine::{
     board::Board,
-    piece::{position::Position, ChessPiece},
+    piece::{position::Position, ChessPiece, Color},
 };
 
 fn main() {
@@ -14,11 +14,24 @@ fn main() {
     let mut board = Board::new();
     println!("{}", board);
     while board.get_winner().is_none() {
+        let turn = board.get_turn();
         let promotion = board.get_promotion();
         if promotion.is_some() {
-            promote_piece(&mut board);
+            match turn {
+                Color::White => promote_piece(&mut board),
+                Color::Black => {
+                    let choice = ai::make_promotion(&board);
+                    board.promote(choice);
+                }
+            }
         } else {
-            move_piece(&mut board);
+            match turn {
+                Color::White => move_piece(&mut board),
+                Color::Black => {
+                    let (from, to) = ai::make_move(&board);
+                    board.move_piece(from, to);
+                }
+            }
         }
 
         println!("{}", board);

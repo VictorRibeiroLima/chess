@@ -1,13 +1,13 @@
 [package]
-name = "cli"
+
+name = "ai"
 version = "0.1.0"
 edition = "2021"
 
-
-[[bin]]
-name = "cli"
-path = "src/main.rs"
+[lib]
+name = "ai"
+path = "src/lib.rs"
 
 [dependencies]
 engine = { path = "../engine" }
-ai = { path = "../ai" }
+rand = "0.8.5"

@@ -120,6 +120,33 @@ impl Board {
         self.promotion
     }
 
+    pub fn get_pieces(&self) -> &[[Option<ChessPiece>; 8]; 8] {
+        &self.pieces
+    }
+
+    pub fn legal_moves(&self) -> Vec<(Position, Position)> {
+        let mut moves = Vec::new();
+        if self.promotion.is_some() || self.winner.is_some() {
+            return moves;
+        }
+        for y in 0..8 {
+            for x in 0..8 {
+                let position = Position { x, y };
+                let piece = self.get_piece_at(&position);
+                if let Some(piece) = piece {
+                    let piece_color = piece.get_color();
+                    if piece_color == self.turn {
+                        let legal_moves = piece.legal_moves(position, self);
+                        for legal_move in legal_moves {
+                            moves.push((position, legal_move));
+                        }
+                    }
+                }
+            }
+        }
+        moves
+    }
+
     pub fn promote(&mut self, piece: ChessPiece) {
         // can't promote to a pawn
         if piece.get_type() == Type::Pawn {
