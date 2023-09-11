@@ -1,4 +1,4 @@
-use std::{fmt, str::FromStr};
+use std::fmt;
 
 use crate::{
     piece::{position::Position, ChessPiece, Color, Type},
@@ -218,6 +218,10 @@ impl Board {
                     let movement = movement.unwrap();
                     self.make_movement(movement);
 
+                    if self.get_winner().is_some() {
+                        return true;
+                    }
+
                     let enemy_color = self.next_turn();
 
                     if self.is_king_in_check(enemy_color) {
@@ -330,17 +334,6 @@ impl Board {
         }
 
         true
-    }
-
-    pub fn removes_check(&self, movement: OkMovement) -> bool {
-        let mut board = *self;
-        let moved_piece = board.make_movement(movement);
-
-        if board.get_winner().is_some() {
-            return true;
-        }
-        let is_king_in_check = board.is_king_in_check(moved_piece.get_color());
-        return !is_king_in_check;
     }
 
     pub fn creates_check(&self, movement: OkMovement) -> bool {

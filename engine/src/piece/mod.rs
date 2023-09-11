@@ -131,15 +131,6 @@ impl ChessPiece {
 
         let movement = movement.unwrap();
 
-        if let Some(check_color) = board.get_check() {
-            if check_color == self.color {
-                let check_resolved = board.removes_check(movement);
-                if !check_resolved {
-                    return Err(MovementError::CheckNotResolved);
-                }
-            }
-        }
-
         let creates_check = board.creates_check(movement);
 
         if creates_check {
@@ -337,7 +328,6 @@ impl ChessPiece {
         }
     }
 
-    //TODO: Refactor function size
     fn can_move_king(&self, from: &Position, to: &Position, board: &Board) -> Movement {
         let x_diff = to.x - from.x;
         let y_diff = to.y - from.y;
@@ -463,8 +453,8 @@ impl ChessPiece {
 
         //3. There are no pieces between the king and the chosen rook.
         let is_path_clear = match x_diff {
-            2 => board.is_horizontal_path_clean(from, &Position { x: 6, y: from.y }),
-            -2 => board.is_horizontal_path_clean(from, &Position { x: 2, y: from.y }),
+            2 => board.is_horizontal_path_clean(from, &Position { x: 7, y: from.y }),
+            -2 => board.is_horizontal_path_clean(from, &Position { x: 0, y: from.y }),
             _ => return Err(MovementError::InvalidMovement),
         };
         if !is_path_clear {

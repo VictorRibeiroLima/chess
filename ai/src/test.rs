@@ -15,15 +15,31 @@ fn move_generation_helper(depth: u8, target: u8, board: &mut Board) -> u64 {
 
     for (from, to) in legal_moves {
         let mut new_board = *board;
-        new_board.move_piece(from, to);
+        assert!(new_board.move_piece(from, to));
         let poss = move_generation_helper(depth + 1, target, &mut new_board);
-        if depth == 0 {
-            println!("{} -> {} : {}", from, to, poss);
-        }
         num_positions += poss;
     }
 
     return num_positions;
+}
+
+#[cfg(test)]
+mod visualize {
+    use std::str::FromStr;
+
+    use engine::{board::Board, piece::position::Position};
+
+    use crate::test::move_generation;
+
+    #[test]
+    fn visualize() {
+        let mut board = Board::new();
+        let from = Position::from_str("c2").unwrap();
+        let to = Position::from_str("c4").unwrap();
+        board.move_piece(from, to);
+        let num_positions = move_generation(4, &mut board);
+        assert_eq!(num_positions, 240082);
+    }
 }
 
 #[cfg(test)]
@@ -63,13 +79,13 @@ mod new_board {
     #[test]
     fn five_depth() {
         let mut board = Board::new();
-        //let num_positions = move_generation(5, &mut board);
-        //assert_eq!(num_positions, 4865609);
+        let num_positions = move_generation(5, &mut board);
+        assert_eq!(num_positions, 4865609);
     }
 
     #[test]
     fn six_depth() {
-        let mut board = Board::new();
+        let mut _board = Board::new();
         //let num_positions = move_generation(6, &mut board);
         //assert_eq!(num_positions, 119060324);
     }

@@ -1247,3 +1247,34 @@ fn test_moved_rock_castling() {
 
     assert_eq!(last_move, MovementError::InvalidMovement);
 }
+
+#[test]
+fn test_castling_capturing_bishop() {
+    let mut board = Board::new();
+    let from = Position::from_str("c2").unwrap();
+    let to = Position::from_str("c4").unwrap();
+
+    assert!(board.move_piece(from, to));
+
+    let from = Position::from_str("a7").unwrap();
+    let to = Position::from_str("a5").unwrap();
+
+    assert!(board.move_piece(from, to));
+
+    let from = Position::from_str("d1").unwrap();
+    let to = Position::from_str("a4").unwrap();
+
+    assert!(board.move_piece(from, to));
+
+    let from = Position::from_str("b7").unwrap();
+    let to = Position::from_str("b5").unwrap();
+
+    assert!(board.move_piece(from, to));
+
+    println!("{}", board);
+
+    let from = Position::from_str("e1").unwrap();
+    let to = Position::from_str("c1").unwrap();
+
+    assert!(!board.move_piece(from, to));
+}
