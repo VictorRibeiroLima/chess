@@ -39,7 +39,7 @@ impl Display for Type {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize)]
 pub enum Color {
     White,
     Black,

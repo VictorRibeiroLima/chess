@@ -3,12 +3,15 @@ use std::time::Instant;
 use crate::{
     commands,
     lobby::{client::Client, Lobby},
-    messages::{CommandMessage, ConnectMessage, DisconnectMessage, StringMessage},
+    messages::{
+        success::SuccessMessage, CommandMessage, ConnectMessage, DisconnectMessage, ErrorMessage,
+        StringMessage,
+    },
     CLIENT_TIMEOUT, HEARTBEAT_INTERVAL,
 };
 use actix::{
     fut, prelude::ContextFutureSpawner, Actor, ActorContext, ActorFutureExt, Addr, AsyncContext,
-    Handler, Recipient, Running, StreamHandler, WrapFuture,
+    Handler, Running, StreamHandler, WrapFuture,
 };
 use actix_web_actors::ws;
 use uuid::Uuid;
@@ -49,9 +52,8 @@ impl Actor for Con {
         self.start_heartbeat(ctx);
 
         let addr = ctx.address();
-        let string_addr: Recipient<StringMessage> = addr.recipient();
 
-        let client = Client::new(self.id, string_addr);
+        let client = Client::new(self.id, addr);
 
         self.lobby_addr
             .send(ConnectMessage {
@@ -88,6 +90,25 @@ impl Handler<StringMessage> for Con {
     }
 }
 
+impl Handler<ErrorMessage> for Con {
+    type Result = ();
+
+    fn handle(&mut self, msg: ErrorMessage, ctx: &mut Self::Context) -> Self::Result {
+        if msg.client_id == self.id {
+            ctx.text(msg.error);
+        }
+    }
+}
+
+impl Handler<SuccessMessage> for Con {
+    type Result = ();
+
+    fn handle(&mut self, msg: SuccessMessage, ctx: &mut Self::Context) -> Self::Result {
+        let msg = serde_json::to_string(&msg).unwrap();
+        ctx.text(msg);
+    }
+}
+
 //Receive message from client and send to lobby
 impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Con {
     fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
@@ -105,8 +126,13 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Con {
                 let command = match command {
                     Ok(command) => command,
                     Err(_) => {
-                        let err = serde_json::to_string(&commands::Error::InvalidCommand).unwrap();
-                        let err = format!("Error: {}", err);
+                        let err = commands::Error::InvalidCommand;
+                        let err = ErrorMessage {
+                            client_id: self.id,
+                            room_id: self.room,
+                            error: err.to_string(),
+                        };
+                        let err = serde_json::to_string(&err).unwrap();
                         ctx.text(err);
                         return;
                     }

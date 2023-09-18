@@ -21,7 +21,7 @@ fn main() {
                 Color::White => promote_piece(&mut board),
                 Color::Black => {
                     let choice = ai::make_promotion(&board);
-                    board.promote(choice);
+                    board.promote(choice).unwrap();
                 }
             }
         } else {
@@ -58,7 +58,7 @@ fn promote_piece(board: &mut Board) {
             return;
         }
     };
-    board.promote(piece);
+    board.promote(piece).unwrap();
 }
 
 fn move_piece(board: &mut Board) {

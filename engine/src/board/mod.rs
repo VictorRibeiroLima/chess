@@ -2,7 +2,7 @@ use std::fmt;
 
 use crate::{
     piece::{position::Position, ChessPiece, Color, Type},
-    result::{Movement, MovementError, OkMovement},
+    result::{Movement, MovementError, OkMovement, PromotionError},
 };
 
 #[cfg(test)]
@@ -165,10 +165,11 @@ impl Board {
         moves
     }
 
-    pub fn promote(&mut self, piece: ChessPiece) {
-        // can't promote to a pawn
-        if piece.get_type() == Type::Pawn {
-            return;
+    pub fn promote(&mut self, piece: ChessPiece) -> Result<(Position, Type), PromotionError> {
+        let piece_type = piece.get_type();
+        // can't promote to a pawn or king
+        if piece_type == Type::Pawn || piece_type == Type::King {
+            return Err(PromotionError::InvalidPromotion(piece_type));
         }
 
         if let Some(position) = self.promotion {
@@ -185,7 +186,10 @@ impl Board {
             } else {
                 self.check = None;
             }
+            return Ok((position, piece_type));
         }
+
+        return Err(PromotionError::NoPromotion);
     }
 
     pub fn move_piece(

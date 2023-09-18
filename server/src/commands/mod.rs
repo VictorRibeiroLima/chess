@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use engine::piece::{position::Position, Type};
 
 #[derive(Debug, serde::Deserialize)]
@@ -12,3 +14,14 @@ pub enum Command {
 pub enum Error {
     InvalidCommand,
 }
+
+impl Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let message = match self {
+            Error::InvalidCommand => "Invalid command",
+        };
+        write!(f, "{}", message)
+    }
+}
+
+impl std::error::Error for Error {}

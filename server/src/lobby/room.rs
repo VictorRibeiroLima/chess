@@ -5,6 +5,11 @@ use engine::{
     piece::{position::Position, ChessPiece, Color, Type},
 };
 
+use crate::messages::{
+    success::{SuccessMessage, SuccessResult},
+    ErrorMessage,
+};
+
 use super::{client::Client, errors::RoomError, ClientId, RoomId};
 
 #[derive(PartialEq, Eq, Clone)]
@@ -74,9 +79,28 @@ impl Room {
     ) -> Result<(), RoomError> {
         self.can_play(client_id)?;
 
-        let _result = self.board.move_piece(from, to);
+        let result = self.board.move_piece(from, to);
 
-        println!("{}", self.board);
+        match result {
+            Ok(movement) => {
+                let result = SuccessMessage {
+                    client_id,
+                    room_id: self.id,
+                    result: SuccessResult::Movement(movement),
+                };
+
+                self.send_room_success(result);
+            }
+            Err(e) => {
+                let client = self.client(client_id)?;
+                client.error_addr().do_send(ErrorMessage {
+                    client_id,
+                    error: e.to_string(),
+                    room_id: self.id,
+                });
+            }
+        }
+
         Ok(())
     }
 
@@ -93,7 +117,28 @@ impl Room {
             Type::King => ChessPiece::create_king(color),
         };
 
-        let _result = self.board.promote(piece);
+        let result = self.board.promote(piece);
+
+        match result {
+            Ok(promotion) => {
+                let result = SuccessMessage {
+                    client_id,
+                    room_id: self.id,
+                    result: SuccessResult::Promotion(promotion),
+                };
+
+                self.send_room_success(result);
+            }
+            Err(e) => {
+                let client = self.client(client_id)?;
+                client.error_addr().do_send(ErrorMessage {
+                    client_id,
+                    error: e.to_string(),
+                    room_id: self.id,
+                });
+            }
+        }
+
         Ok(())
     }
 
@@ -124,6 +169,21 @@ impl Room {
             Ok(Color::Black)
         } else {
             Err(RoomError::ClientNotInRoom)
+        }
+    }
+
+    fn client(&self, client_id: ClientId) -> Result<&Arc<Client>, RoomError> {
+        let client = self
+            .clients
+            .iter()
+            .find(|client| client.id() == client_id)
+            .ok_or(RoomError::ClientNotInRoom)?;
+        Ok(client)
+    }
+
+    fn send_room_success(&self, msg: SuccessMessage) {
+        for client in &self.clients {
+            client.success_addr().do_send(msg.clone());
         }
     }
 }

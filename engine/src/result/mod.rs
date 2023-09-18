@@ -1,6 +1,25 @@
+use serde::Serialize;
 use std::{error::Error, fmt::Display};
 
-use crate::piece::position::Position;
+use crate::piece::{position::Position, Type};
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum PromotionError {
+    InvalidPromotion(Type),
+    NoPromotion,
+}
+
+impl Display for PromotionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let error_message = match self {
+            PromotionError::InvalidPromotion(piece) => format!("Invalid promotion to: {}", piece),
+            PromotionError::NoPromotion => "No promotion".to_string(),
+        };
+        write!(f, "{}", error_message)
+    }
+}
+
+impl Error for PromotionError {}
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum MovementError {
@@ -34,7 +53,7 @@ impl Error for MovementError {}
 /// EnPassant((Position, Position)) - A valid en passant movement (from, to)
 /// Castling((Position, Position), (Position, Position)) - A valid castling movement (king, rock) (from, to)
 /// InitialDoubleAdvance((Position, Position)) - A valid initial double advance of a pawn movement (from, to)
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize)]
 pub enum OkMovement {
     Valid((Position, Position)),
     Capture((Position, Position)),
