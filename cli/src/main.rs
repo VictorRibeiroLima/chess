@@ -29,7 +29,7 @@ fn main() {
                 Color::White => move_piece(&mut board),
                 Color::Black => {
                     let (from, to) = ai::make_move(&board);
-                    board.move_piece(from, to);
+                    board.move_piece(from, to).unwrap();
                 }
             }
         }
@@ -77,8 +77,11 @@ fn move_piece(board: &mut Board) {
         }
     };
     let moved = board.move_piece(from, to);
-    if !moved {
-        println!("Invalid move");
+    match moved {
+        Ok(_) => {}
+        Err(e) => {
+            println!("{}", e);
+        }
     }
 }
 

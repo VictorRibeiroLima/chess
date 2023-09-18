@@ -90,7 +90,7 @@ fn test_should_create_check() {
     let from = Position::from_str("d3").unwrap();
     let to = Position::from_str("e4").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
     if let Some(check) = board.get_check() {
         assert_eq!(check, Color::Black);
     } else {
@@ -182,7 +182,7 @@ fn test_should_create_check_2() {
     let from = Position::from_str("d3").unwrap();
     let to = Position::from_str("e4").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
     if let Some(check) = board.get_check() {
         assert_eq!(check, Color::Black);
     } else {
@@ -274,7 +274,7 @@ fn test_should_create_checkmate() {
     let from = Position::from_str("d3").unwrap();
     let to = Position::from_str("e4").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
     if let Some(check) = board.get_winner() {
         assert_eq!(check, Color::White);
     } else {
@@ -288,7 +288,7 @@ fn test_should_mark_double_advance() {
     let from = Position::from_str("e2").unwrap();
     let to = Position::from_str("e4").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
     let last_move = board.get_last_move();
     let last_move = last_move.unwrap().unwrap();
     assert_eq!(last_move, OkMovement::InitialDoubleAdvance((from, to)));
@@ -300,25 +300,25 @@ fn test_en_passant() {
     let from = Position::from_str("e2").unwrap();
     let to = Position::from_str("e4").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
     let from = Position::from_str("d7").unwrap();
     let to = Position::from_str("d5").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
     let from = Position::from_str("e4").unwrap();
     let to = Position::from_str("d5").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     let from = Position::from_str("e7").unwrap();
     let to = Position::from_str("e5").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     let from = Position::from_str("d5").unwrap();
     let to = Position::from_str("e6").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     let last_move = board.get_last_move();
     let last_move = last_move.unwrap().unwrap();
@@ -331,25 +331,25 @@ fn test_invalid_en_passant_movement() {
     let from = Position::from_str("e2").unwrap();
     let to = Position::from_str("e4").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
     let from = Position::from_str("d7").unwrap();
     let to = Position::from_str("d5").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
     let from = Position::from_str("e4").unwrap();
     let to = Position::from_str("d5").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     let from = Position::from_str("e7").unwrap();
     let to = Position::from_str("e5").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     let from = Position::from_str("d5").unwrap();
     let to = Position::from_str("b6").unwrap();
 
-    assert!(!board.move_piece(from, to));
+    assert!(!board.move_piece(from, to).is_ok());
 
     let last_move = board.get_last_move();
     let last_move = last_move.unwrap().unwrap_err();
@@ -368,37 +368,37 @@ fn test_missed_en_passant() {
     let from = Position::from_str("e2").unwrap();
     let to = Position::from_str("e4").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
     let from = Position::from_str("d7").unwrap();
     let to = Position::from_str("d5").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
     let from = Position::from_str("e4").unwrap();
     let to = Position::from_str("d5").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     let from = Position::from_str("e7").unwrap();
     let to = Position::from_str("e5").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     let from = Position::from_str("a2").unwrap();
     let to = Position::from_str("a4").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     let from = Position::from_str("a7").unwrap();
     let to = Position::from_str("a5").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     //En passant is not possible anymore
 
     let from = Position::from_str("d5").unwrap();
     let to = Position::from_str("e6").unwrap();
 
-    assert!(!board.move_piece(from, to));
+    assert!(!board.move_piece(from, to).is_ok());
 
     let last_move = board.get_last_move();
     let last_move = last_move.unwrap().unwrap_err();
@@ -411,42 +411,42 @@ fn test_invalid_en_passant_movement_2() {
     let from = Position::from_str("e2").unwrap();
     let to = Position::from_str("e4").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
     let from = Position::from_str("d7").unwrap();
     let to = Position::from_str("d5").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
     let from = Position::from_str("e4").unwrap();
     let to = Position::from_str("d5").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     let from = Position::from_str("e7").unwrap();
     let to = Position::from_str("e5").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     let from = Position::from_str("a2").unwrap();
     let to = Position::from_str("a4").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     let from = Position::from_str("a7").unwrap();
     let to = Position::from_str("a5").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     //En passant is not possible anymore "d5" "e6"
 
     let from = Position::from_str("h2").unwrap();
     let to = Position::from_str("h4").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     let from = Position::from_str("c7").unwrap();
     let to = Position::from_str("c5").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     //En passant of "d5" "c6" is now possible
     //but the En passant of "d5" "e6" will be tried instead
@@ -455,7 +455,7 @@ fn test_invalid_en_passant_movement_2() {
     let from = Position::from_str("d5").unwrap();
     let to = Position::from_str("e6").unwrap();
 
-    assert!(!board.move_piece(from, to));
+    assert!(!board.move_piece(from, to).is_ok());
 
     let last_move = board.get_last_move();
     let last_move = last_move.unwrap().unwrap_err();
@@ -469,49 +469,49 @@ fn test_en_passant_2() {
     let from = Position::from_str("e2").unwrap();
     let to = Position::from_str("e4").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
     let from = Position::from_str("d7").unwrap();
     let to = Position::from_str("d5").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
     let from = Position::from_str("e4").unwrap();
     let to = Position::from_str("d5").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     let from = Position::from_str("e7").unwrap();
     let to = Position::from_str("e5").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     let from = Position::from_str("a2").unwrap();
     let to = Position::from_str("a4").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     let from = Position::from_str("a7").unwrap();
     let to = Position::from_str("a5").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     //En passant is not possible anymore "d5" "e6"
 
     let from = Position::from_str("h2").unwrap();
     let to = Position::from_str("h4").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     let from = Position::from_str("c7").unwrap();
     let to = Position::from_str("c5").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     //En passant of "d5" "c6" is now possible
 
     let from = Position::from_str("d5").unwrap();
     let to = Position::from_str("c6").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     let last_move = board.get_last_move();
     let last_move = last_move.unwrap().unwrap();
@@ -581,7 +581,7 @@ fn test_should_checkmate() {
     let from = Position::from_str("h2").unwrap();
     let to = Position::from_str("h1").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     let last_move = board.get_last_move();
     let last_move = last_move.unwrap().unwrap();
@@ -597,22 +597,22 @@ fn test_fools_mate() {
     let from = Position::from_str("f2").unwrap();
     let to = Position::from_str("f3").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     let from = Position::from_str("e7").unwrap();
     let to = Position::from_str("e5").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     let from = Position::from_str("g2").unwrap();
     let to = Position::from_str("g4").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     let from = Position::from_str("d8").unwrap();
     let to = Position::from_str("h4").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     assert_eq!(board.get_winner(), Some(Color::Black));
 }
@@ -650,7 +650,7 @@ fn test_invalid_check_move() {
     let from = Position::from_str("g8").unwrap();
     let to = Position::from_str("h8").unwrap();
 
-    assert!(!board.move_piece(from, to));
+    assert!(!board.move_piece(from, to).is_ok());
 
     let last_move = board.get_last_move();
     let last_move = last_move.unwrap().unwrap_err();
@@ -764,7 +764,7 @@ fn test_d_byrne_vs_fischer_checkmate() {
     let from = Position::from_str("a2").unwrap();
     let to = Position::from_str("c2").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
     assert_eq!(board.get_winner(), Some(Color::Black));
 }
 
@@ -790,7 +790,7 @@ fn test_kingside_castling_white() {
     let from = Position::from_str("e1").unwrap();
     let to = Position::from_str("g1").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
     let last_move = board.get_last_move();
     let last_move = last_move.unwrap().unwrap();
 
@@ -837,7 +837,7 @@ fn test_queen_side_castling_white() {
     let from = Position::from_str("e1").unwrap();
     let to = Position::from_str("c1").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
     let last_move = board.get_last_move();
     let last_move = last_move.unwrap().unwrap();
 
@@ -884,7 +884,7 @@ fn test_kingside_castling_black() {
     let from = Position::from_str("e8").unwrap();
     let to = Position::from_str("g8").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
     let last_move = board.get_last_move();
     let last_move = last_move.unwrap().unwrap();
 
@@ -931,7 +931,7 @@ fn test_queen_side_castling_black() {
     let from = Position::from_str("e8").unwrap();
     let to = Position::from_str("c8").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
     let last_move = board.get_last_move();
     let last_move = last_move.unwrap().unwrap();
 
@@ -962,7 +962,7 @@ fn test_blocked_kingside_castling() {
 
     let from = Position::from_str("e1").unwrap();
     let to = Position::from_str("g1").unwrap();
-    assert!(!board.move_piece(from, to));
+    assert!(!board.move_piece(from, to).is_ok());
 }
 
 #[test]
@@ -971,7 +971,7 @@ fn test_blocked_queen_side_castling() {
 
     let from = Position::from_str("e1").unwrap();
     let to = Position::from_str("c1").unwrap();
-    assert!(!board.move_piece(from, to));
+    assert!(!board.move_piece(from, to).is_ok());
 }
 
 #[test]
@@ -997,7 +997,7 @@ fn test_attacked_king_castling() {
     let from = Position::from_str("e1").unwrap();
     let to = Position::from_str("g1").unwrap();
 
-    assert!(!board.move_piece(from, to));
+    assert!(!board.move_piece(from, to).is_ok());
 
     let last_move = board.get_last_move();
     let last_move = last_move.unwrap().unwrap_err();
@@ -1038,7 +1038,7 @@ fn test_attacked_path_queen_side_castling() {
     let from = Position::from_str("e1").unwrap();
     let to = Position::from_str("c1").unwrap();
 
-    assert!(!board.move_piece(from, to));
+    assert!(!board.move_piece(from, to).is_ok());
 
     let last_move = board.get_last_move();
     let last_move = last_move.unwrap().unwrap_err();
@@ -1079,7 +1079,7 @@ fn test_attacked_path_queen_side_castling_2() {
     let from = Position::from_str("e1").unwrap();
     let to = Position::from_str("c1").unwrap();
 
-    assert!(!board.move_piece(from, to));
+    assert!(!board.move_piece(from, to).is_ok());
 
     let last_move = board.get_last_move();
     let last_move = last_move.unwrap().unwrap_err();
@@ -1119,7 +1119,7 @@ fn test_attacked_path_from_rock_queen_side_castling_should_happen() {
 
     let from = Position::from_str("e1").unwrap();
     let to = Position::from_str("c1").unwrap();
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 }
 
 #[test]
@@ -1155,29 +1155,29 @@ fn test_moved_king_castling() {
     let from = Position::from_str("e1").unwrap();
     let to = Position::from_str("f1").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     let from = Position::from_str("e8").unwrap();
     let to = Position::from_str("f8").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     let from = Position::from_str("f1").unwrap();
     let to = Position::from_str("e1").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     let from = Position::from_str("f8").unwrap();
     let to = Position::from_str("e8").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     //Same as the initial board but king has moved
 
     let from = Position::from_str("e1").unwrap();
     let to = Position::from_str("g1").unwrap();
 
-    assert!(!board.move_piece(from, to));
+    assert!(!board.move_piece(from, to).is_ok());
 
     let last_move = board.get_last_move();
     let last_move = last_move.unwrap().unwrap_err();
@@ -1218,29 +1218,29 @@ fn test_moved_rock_castling() {
     let from = Position::from_str("h1").unwrap();
     let to = Position::from_str("g1").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     let from = Position::from_str("e8").unwrap();
     let to = Position::from_str("f8").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     let from = Position::from_str("g1").unwrap();
     let to = Position::from_str("h1").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     let from = Position::from_str("f8").unwrap();
     let to = Position::from_str("e8").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     //Same as the initial board but rock has moved
 
     let from = Position::from_str("e1").unwrap();
     let to = Position::from_str("g1").unwrap();
 
-    assert!(!board.move_piece(from, to));
+    assert!(!board.move_piece(from, to).is_ok());
 
     let last_move = board.get_last_move();
     let last_move = last_move.unwrap().unwrap_err();
@@ -1254,27 +1254,27 @@ fn test_castling_capturing_bishop() {
     let from = Position::from_str("c2").unwrap();
     let to = Position::from_str("c4").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     let from = Position::from_str("a7").unwrap();
     let to = Position::from_str("a5").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     let from = Position::from_str("d1").unwrap();
     let to = Position::from_str("a4").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     let from = Position::from_str("b7").unwrap();
     let to = Position::from_str("b5").unwrap();
 
-    assert!(board.move_piece(from, to));
+    assert!(board.move_piece(from, to).is_ok());
 
     println!("{}", board);
 
     let from = Position::from_str("e1").unwrap();
     let to = Position::from_str("c1").unwrap();
 
-    assert!(!board.move_piece(from, to));
+    assert!(!board.move_piece(from, to).is_ok());
 }

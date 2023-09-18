@@ -188,21 +188,25 @@ impl Board {
         }
     }
 
-    pub fn move_piece(&mut self, from: Position, to: Position) -> bool {
+    pub fn move_piece(
+        &mut self,
+        from: Position,
+        to: Position,
+    ) -> Result<OkMovement, MovementError> {
         let piece = self.get_piece_at(&from).cloned();
         if from == to {
             self.last_move = Some(Err(MovementError::SamePosition));
-            return false;
+            return Err(MovementError::SamePosition);
         }
         let promotion = self.promotion.is_some();
         if promotion {
-            return false;
+            return Err(MovementError::PromotionNotSpecified);
         }
         match piece {
             Some(piece) => {
                 if piece.get_color() != self.turn {
                     self.last_move = Some(Err(MovementError::InvalidPiece));
-                    return false;
+                    return Err(MovementError::InvalidPiece);
                 }
                 let movement = piece.can_move(from, to, self);
                 self.last_move = Some(movement);
@@ -212,7 +216,7 @@ impl Board {
                     self.make_movement(movement);
 
                     if self.get_winner().is_some() {
-                        return true;
+                        return Ok(movement);
                     }
 
                     let enemy_color = self.next_turn();
@@ -222,7 +226,7 @@ impl Board {
                         let is_checkmate = self.is_checkmate(enemy_color);
                         if is_checkmate {
                             self.winner = Some(self.turn);
-                            return true;
+                            return Ok(movement);
                         }
                     } else {
                         self.check = None;
@@ -235,9 +239,9 @@ impl Board {
                         self.change_turn();
                     }
                 }
-                return can_move;
+                return movement;
             }
-            None => false,
+            None => Err(MovementError::InvalidPiece),
         }
     }
 

@@ -9,6 +9,7 @@ pub enum MovementError {
     CheckNotResolved,
     CreatesOwnCheck,
     SamePosition,
+    PromotionNotSpecified,
 }
 
 impl Display for MovementError {
@@ -19,6 +20,7 @@ impl Display for MovementError {
             MovementError::CheckNotResolved => "Check not resolved",
             MovementError::CreatesOwnCheck => "Creates own check",
             MovementError::SamePosition => "Same position",
+            MovementError::PromotionNotSpecified => "Promotion not specified",
         };
         write!(f, "{}", error_message)
     }

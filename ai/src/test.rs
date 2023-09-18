@@ -15,7 +15,7 @@ fn move_generation_helper(depth: u8, target: u8, board: &mut Board) -> u64 {
 
     for (from, to) in legal_moves {
         let mut new_board = *board;
-        assert!(new_board.move_piece(from, to));
+        assert!(new_board.move_piece(from, to).is_ok());
         let poss = move_generation_helper(depth + 1, target, &mut new_board);
         num_positions += poss;
     }
@@ -36,7 +36,7 @@ mod visualize {
         let mut board = Board::new();
         let from = Position::from_str("c2").unwrap();
         let to = Position::from_str("c4").unwrap();
-        board.move_piece(from, to);
+        board.move_piece(from, to).unwrap();
         let num_positions = move_generation(4, &mut board);
         assert_eq!(num_positions, 240082);
     }
