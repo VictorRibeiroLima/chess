@@ -1,13 +1,14 @@
 use std::time::Instant;
 
 use crate::{
+    commands,
     lobby::{client::Client, Lobby},
-    messages::{ConnectMessage, DisconnectMessage, StringMessage},
+    messages::{CommandMessage, ConnectMessage, DisconnectMessage, StringMessage},
     CLIENT_TIMEOUT, HEARTBEAT_INTERVAL,
 };
 use actix::{
     fut, prelude::ContextFutureSpawner, Actor, ActorContext, ActorFutureExt, Addr, AsyncContext,
-    Handler, Recipient, StreamHandler, WrapFuture,
+    Handler, Recipient, Running, StreamHandler, WrapFuture,
 };
 use actix_web_actors::ws;
 use uuid::Uuid;
@@ -68,21 +69,13 @@ impl Actor for Con {
             .wait(ctx);
     }
 
-    fn stopped(&mut self, ctx: &mut Self::Context) {
-        self.lobby_addr
-            .send(DisconnectMessage {
-                room_id: self.room,
-                client_id: self.id,
-            })
-            .into_actor(self)
-            .then(|res, _, _| {
-                match res {
-                    Ok(_) => (),
-                    _ => (),
-                }
-                fut::ready(())
-            })
-            .wait(ctx);
+    fn stopping(&mut self, _: &mut Self::Context) -> Running {
+        self.lobby_addr.do_send(DisconnectMessage {
+            room_id: self.room,
+            client_id: self.id,
+        });
+
+        Running::Stop
     }
 }
 
@@ -107,7 +100,35 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Con {
                 self.heartbeat = Instant::now();
             }
             Ok(ws::Message::Text(text)) => {
-                println!("Text: {}", text);
+                let text = text.trim();
+                let command = serde_json::from_str::<commands::Command>(text);
+                let command = match command {
+                    Ok(command) => command,
+                    Err(_) => {
+                        let err = serde_json::to_string(&commands::Error::InvalidCommand).unwrap();
+                        let err = format!("Error: {}", err);
+                        ctx.text(err);
+                        return;
+                    }
+                };
+
+                let command_message = CommandMessage {
+                    room_id: self.room,
+                    client_id: self.id,
+                    command,
+                };
+
+                self.lobby_addr
+                    .send(command_message)
+                    .into_actor(self)
+                    .then(|res, _, ctx| {
+                        match res {
+                            Ok(_) => (),
+                            _ => ctx.stop(),
+                        }
+                        fut::ready(())
+                    })
+                    .wait(ctx);
             }
             Ok(ws::Message::Close(reason)) => {
                 ctx.close(reason);

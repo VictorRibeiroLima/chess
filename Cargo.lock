@@ -541,6 +541,7 @@ name = "engine"
 version = "0.1.0"
 dependencies = [
  "colored",
+ "serde",
 ]
 
 [[package]]
@@ -1126,6 +1127,8 @@ dependencies = [
  "dotenv",
  "engine",
  "env_logger",
+ "serde",
+ "serde_json",
  "tokio",
  "uuid",
 ]

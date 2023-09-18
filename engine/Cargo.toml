@@ -10,4 +10,4 @@ path = "src/lib.rs"
 
 [dependencies]
 colored = "2.0.4"
-
+serde = { version = "1.0.188", features= ["derive"] }

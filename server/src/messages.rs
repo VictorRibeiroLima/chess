@@ -1,10 +1,21 @@
 use actix::prelude::Message;
 
-use crate::lobby::{client::Client, ClientId, RoomId};
+use crate::{
+    commands::Command,
+    lobby::{client::Client, ClientId, RoomId},
+};
 
 #[derive(Message)]
 #[rtype(result = "()")]
 pub struct StringMessage(pub String);
+
+#[derive(Message)]
+#[rtype(result = "()")]
+pub struct CommandMessage {
+    pub room_id: RoomId,
+    pub client_id: ClientId,
+    pub command: Command,
+}
 
 //WsConn sends this to the lobby to say "put me in please"
 #[derive(Message)]

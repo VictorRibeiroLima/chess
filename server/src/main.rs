@@ -5,7 +5,7 @@ use actix_cors::Cors;
 use actix_web::{
     get,
     middleware::NormalizePath,
-    web::{Data, Payload},
+    web::{Data, Path, Payload},
     App, Error, HttpRequest, HttpResponse, HttpServer, Responder,
 };
 use con::Con;
@@ -15,6 +15,7 @@ use uuid::Uuid;
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 
+mod commands;
 mod con;
 mod lobby;
 mod messages;
@@ -25,7 +26,7 @@ async fn hello() -> impl Responder {
 }
 
 #[get("/create")]
-async fn start_connection(
+async fn create_room(
     req: HttpRequest,
     stream: Payload,
     srv: Data<Arc<Addr<Lobby>>>,
@@ -33,6 +34,21 @@ async fn start_connection(
     let group_id = Uuid::new_v4();
     let addr = srv.get_ref().as_ref().clone();
     let ws = Con::new(group_id, addr);
+
+    let resp = actix_web_actors::ws::start(ws, &req, stream)?;
+    Ok(resp)
+}
+
+#[get("/join/{room_id}")]
+async fn join_room(
+    room_id: Path<Uuid>,
+    req: HttpRequest,
+    stream: Payload,
+    srv: Data<Arc<Addr<Lobby>>>,
+) -> Result<HttpResponse, Error> {
+    let room_id = room_id.into_inner();
+    let addr = srv.get_ref().as_ref().clone();
+    let ws = Con::new(room_id, addr);
 
     let resp = actix_web_actors::ws::start(ws, &req, stream)?;
     Ok(resp)
@@ -50,7 +66,8 @@ async fn main() -> std::io::Result<()> {
             .wrap(Cors::permissive())
             .app_data(Data::new(lobby.clone()))
             .service(hello)
-            .service(start_connection)
+            .service(create_room)
+            .service(join_room)
     })
     .bind(("127.0.0.1", 8080))?
     .run()

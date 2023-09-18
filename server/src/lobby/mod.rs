@@ -10,7 +10,10 @@ pub mod room;
 pub type ClientId = Uuid;
 pub type RoomId = Uuid;
 
-use crate::messages::{ConnectMessage, DisconnectMessage, StringMessage};
+use crate::{
+    commands::Command,
+    messages::{CommandMessage, ConnectMessage, DisconnectMessage, StringMessage},
+};
 
 use self::{client::Client, room::Room};
 
@@ -80,8 +83,8 @@ impl Handler<ConnectMessage> for Lobby {
         self.sessions.insert(client.id(), client);
 
         let id_message = format!(
-            "Your id is {}, you are playing as {}",
-            client_id, player_color
+            "Your id is {}, you are playing as {}.\n Room id is {}",
+            client_id, player_color, room_id
         );
         self.send_client_message(client_id, &id_message);
     }
@@ -93,8 +96,20 @@ impl Handler<DisconnectMessage> for Lobby {
     fn handle(&mut self, msg: DisconnectMessage, _: &mut Self::Context) -> Self::Result {
         let room_id = msg.room_id;
         let client_id = msg.client_id;
-        let room = self.rooms.get_mut(&room_id).unwrap();
-        let client = self.sessions.get(&client_id).unwrap();
+        let room = match self.rooms.get_mut(&room_id) {
+            Some(room) => room,
+            None => {
+                let error_message = format!("Error: Room {} does not exist", room_id);
+                self.send_client_message(client_id, &error_message);
+                return;
+            }
+        };
+        let client = match self.sessions.get(&client_id) {
+            Some(client) => client,
+            None => {
+                return;
+            }
+        };
 
         match room.remove_client(client) {
             Ok(_) => (),
@@ -106,7 +121,45 @@ impl Handler<DisconnectMessage> for Lobby {
         }
         self.sessions.remove(&client_id);
 
-        let leave_message = format!("{} has left the room", client_id);
-        self.send_room_message(room_id, &leave_message);
+        if room.clients().is_empty() {
+            println!("Room {} is empty, removing", room_id);
+            self.rooms.remove(&room_id);
+        } else {
+            let leave_message = format!("{} has left the room", client_id);
+            self.send_room_message(room_id, &leave_message);
+        }
+    }
+}
+
+impl Handler<CommandMessage> for Lobby {
+    type Result = ();
+
+    fn handle(&mut self, msg: CommandMessage, _: &mut Self::Context) -> Self::Result {
+        let room_id = msg.room_id;
+        let client_id = msg.client_id;
+        let command = msg.command;
+        let room = match self.rooms.get_mut(&room_id) {
+            Some(room) => room,
+            None => {
+                let error_message = format!("Error: Room {} does not exist", room_id);
+                self.send_client_message(client_id, &error_message);
+                return;
+            }
+        };
+
+        let result = match command {
+            Command::Move { from, to } => room.make_move(client_id, from, to),
+            Command::Promote { piece } => room.promote(client_id, piece),
+            Command::Resign => room.resign(client_id),
+        };
+
+        match result {
+            Ok(_) => (),
+            Err(e) => {
+                let error_message = format!("Error: {}", e);
+                self.send_client_message(client_id, &error_message);
+                return;
+            }
+        }
     }
 }

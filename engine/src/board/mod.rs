@@ -117,17 +117,6 @@ impl Board {
         self.winner
     }
 
-    pub fn change_turn(&mut self) {
-        self.turn = self.next_turn();
-    }
-
-    pub fn next_turn(&self) -> Color {
-        match self.turn {
-            Color::White => Color::Black,
-            Color::Black => Color::White,
-        }
-    }
-
     pub fn get_turn(&self) -> Color {
         self.turn
     }
@@ -146,6 +135,10 @@ impl Board {
 
     pub fn get_pieces(&self) -> &[[Option<ChessPiece>; 8]; 8] {
         &self.pieces
+    }
+
+    pub fn resign(&mut self) {
+        self.winner = Some(self.next_turn());
     }
 
     //TODO: This is a very expensive operation.
@@ -477,6 +470,17 @@ impl Board {
             }
         }
         false
+    }
+
+    fn change_turn(&mut self) {
+        self.turn = self.next_turn();
+    }
+
+    fn next_turn(&self) -> Color {
+        match self.turn {
+            Color::White => Color::Black,
+            Color::Black => Color::White,
+        }
     }
 
     fn initial_pieces_setup() -> [[Option<ChessPiece>; 8]; 8] {

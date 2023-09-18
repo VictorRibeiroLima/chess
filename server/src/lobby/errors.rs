@@ -9,6 +9,8 @@ pub enum RoomError {
     ClientNotInRoom,
     ClientAlreadyInRoom,
     ClientAlreadyInOtherRoom,
+    NotYourTurn,
+    NotEnoughPlayers,
 }
 
 impl Display for RoomError {
@@ -20,6 +22,8 @@ impl Display for RoomError {
             RoomError::ClientNotInRoom => write!(f, "Client is not in room"),
             RoomError::ClientAlreadyInRoom => write!(f, "Client is already in room"),
             RoomError::ClientAlreadyInOtherRoom => write!(f, "Client is already in another room"),
+            RoomError::NotYourTurn => write!(f, "It is not your turn"),
+            RoomError::NotEnoughPlayers => write!(f, "Not enough players"),
         }
     }
 }

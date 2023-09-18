@@ -1,9 +1,25 @@
+use serde::Deserialize;
 use std::{fmt::Display, str::FromStr};
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct Position {
     pub x: i32,
     pub y: i32,
+}
+
+impl<'de> Deserialize<'de> for Position {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let mut value: String = Deserialize::deserialize(deserializer)?;
+        value.make_ascii_lowercase();
+        let position = Position::from_str(&value);
+        match position {
+            Ok(position) => Ok(position),
+            Err(_) => Err(serde::de::Error::custom("Invalid position")),
+        }
+    }
 }
 
 impl Display for Position {
