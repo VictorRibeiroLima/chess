@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use crate::messages::StringMessage;
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Client {
     id: Uuid,
     string_addr: Recipient<StringMessage>,

@@ -15,10 +15,6 @@ use uuid::Uuid;
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 
-type ClientId = Uuid;
-type RoomId = Uuid;
-
-mod client;
 mod con;
 mod lobby;
 mod messages;
@@ -39,7 +35,6 @@ async fn start_connection(
     let ws = Con::new(group_id, addr);
 
     let resp = actix_web_actors::ws::start(ws, &req, stream)?;
-    println!("Response: {:?}", resp);
     Ok(resp)
 }
 
@@ -48,7 +43,6 @@ async fn main() -> std::io::Result<()> {
     dotenv::dotenv().ok();
     env_logger::init();
     let lobby = lobby::Lobby::default().start();
-    println!("Starting server at");
     let lobby = Arc::new(lobby);
     HttpServer::new(move || {
         App::new()

@@ -1,6 +1,6 @@
 use actix::prelude::Message;
 
-use crate::{client::Client, ClientId, RoomId};
+use crate::lobby::{client::Client, ClientId, RoomId};
 
 #[derive(Message)]
 #[rtype(result = "()")]

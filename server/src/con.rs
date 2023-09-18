@@ -1,14 +1,13 @@
 use std::time::Instant;
 
 use crate::{
-    client::Client,
-    lobby::Lobby,
+    lobby::{client::Client, Lobby},
     messages::{ConnectMessage, DisconnectMessage, StringMessage},
     CLIENT_TIMEOUT, HEARTBEAT_INTERVAL,
 };
 use actix::{
     fut, prelude::ContextFutureSpawner, Actor, ActorContext, ActorFutureExt, Addr, AsyncContext,
-    Handler, Recipient, Running, StreamHandler, WrapFuture,
+    Handler, Recipient, StreamHandler, WrapFuture,
 };
 use actix_web_actors::ws;
 use uuid::Uuid;

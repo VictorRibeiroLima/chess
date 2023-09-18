@@ -1,27 +1,29 @@
-use std::{
-    collections::{HashMap, HashSet},
-    rc::Rc,
-    sync::Arc,
-};
+use std::{collections::HashMap, sync::Arc};
 
 use actix::{Actor, Handler};
+use uuid::Uuid;
 
-use crate::{
-    client::Client,
-    messages::{ConnectMessage, DisconnectMessage, StringMessage},
-    ClientId, RoomId,
-};
+pub mod client;
+mod errors;
+pub mod room;
+
+pub type ClientId = Uuid;
+pub type RoomId = Uuid;
+
+use crate::messages::{ConnectMessage, DisconnectMessage, StringMessage};
+
+use self::{client::Client, room::Room};
 
 #[derive(Default, Clone)]
 pub struct Lobby {
     sessions: HashMap<ClientId, Arc<Client>>,
-    rooms: HashMap<RoomId, HashSet<Arc<Client>>>,
+    rooms: HashMap<RoomId, Room>,
 }
 
 impl Lobby {
     pub fn send_room_message(&self, room: RoomId, msg: &str) -> Option<()> {
         let room = self.rooms.get(&room)?;
-        for client in room {
+        for client in room.clients() {
             client.addr().do_send(StringMessage(msg.to_owned()));
         }
         Some(())
@@ -33,7 +35,7 @@ impl Lobby {
         Some(())
     }
 
-    pub fn send_all_message(&self, msg: &str) {
+    pub fn _send_all_message(&self, msg: &str) {
         for client in self.sessions.values() {
             client.addr().do_send(StringMessage(msg.to_owned()));
         }
@@ -54,19 +56,33 @@ impl Handler<ConnectMessage> for Lobby {
         let room = match self.rooms.get_mut(&room_id) {
             Some(room) => room,
             None => {
-                let room = HashSet::new();
+                let room = Room::new(room_id);
                 self.rooms.insert(room_id, room);
                 self.rooms.get_mut(&room_id).unwrap()
             }
         };
 
-        room.insert(client.clone());
+        let player_color = match room.add_client(client.clone()) {
+            Ok(color) => color,
+            Err(e) => {
+                let error_message = format!("Error: {}", e);
+                self.send_client_message(client_id, &error_message);
+                return;
+            }
+        };
 
-        let join_message = format!("{} has joined the room", client.id());
+        let join_message = format!(
+            "{} has joined the room, playing has {}",
+            client.id(),
+            player_color
+        );
         self.send_room_message(room_id, &join_message);
         self.sessions.insert(client.id(), client);
 
-        let id_message = format!("Your id is {}", client_id);
+        let id_message = format!(
+            "Your id is {}, you are playing as {}",
+            client_id, player_color
+        );
         self.send_client_message(client_id, &id_message);
     }
 }
@@ -80,7 +96,14 @@ impl Handler<DisconnectMessage> for Lobby {
         let room = self.rooms.get_mut(&room_id).unwrap();
         let client = self.sessions.get(&client_id).unwrap();
 
-        room.remove(client);
+        match room.remove_client(client) {
+            Ok(_) => (),
+            Err(e) => {
+                let error_message = format!("Error: {}", e);
+                self.send_client_message(client_id, &error_message);
+                return;
+            }
+        }
         self.sessions.remove(&client_id);
 
         let leave_message = format!("{} has left the room", client_id);
