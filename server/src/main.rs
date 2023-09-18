@@ -25,29 +25,48 @@ async fn hello() -> impl Responder {
     HttpResponse::Ok().body("Hello world!")
 }
 
-#[get("/create")]
+#[get("/room")]
+async fn available_rooms(addr: Data<Arc<Addr<Lobby>>>) -> impl Responder {
+    let rooms = addr.get_ref().send(messages::AvailableRooms).await;
+    match rooms {
+        Ok(rooms) => HttpResponse::Ok().json(rooms),
+        Err(_) => HttpResponse::InternalServerError().finish(),
+    }
+}
+
+#[get("/room/create")]
 async fn create_room(
     req: HttpRequest,
     stream: Payload,
-    srv: Data<Arc<Addr<Lobby>>>,
+    addr: Data<Arc<Addr<Lobby>>>,
 ) -> Result<HttpResponse, Error> {
     let group_id = Uuid::new_v4();
-    let addr = srv.get_ref().as_ref().clone();
+    let addr = addr.get_ref().as_ref().clone();
     let ws = Con::new(group_id, addr);
 
     let resp = actix_web_actors::ws::start(ws, &req, stream)?;
     Ok(resp)
 }
 
-#[get("/join/{room_id}")]
+#[get("/room/{room_id}")]
 async fn join_room(
     room_id: Path<Uuid>,
     req: HttpRequest,
     stream: Payload,
-    srv: Data<Arc<Addr<Lobby>>>,
+    addr: Data<Arc<Addr<Lobby>>>,
 ) -> Result<HttpResponse, Error> {
     let room_id = room_id.into_inner();
-    let addr = srv.get_ref().as_ref().clone();
+    let addr = addr.get_ref().as_ref().clone();
+
+    let room = match addr.send(messages::AvailableRoom(room_id)).await {
+        Ok(room) => room,
+        Err(_) => return Ok(HttpResponse::InternalServerError().finish()),
+    };
+
+    if !room {
+        return Ok(HttpResponse::NotFound().finish());
+    }
+
     let ws = Con::new(room_id, addr);
 
     let resp = actix_web_actors::ws::start(ws, &req, stream)?;
@@ -58,14 +77,16 @@ async fn join_room(
 async fn main() -> std::io::Result<()> {
     dotenv::dotenv().ok();
     env_logger::init();
-    let lobby = lobby::Lobby::default().start();
-    let lobby = Arc::new(lobby);
+    let lobby = Lobby::default();
+    let addr = lobby.start();
+    let addr = Arc::new(addr);
     HttpServer::new(move || {
         App::new()
             .wrap(NormalizePath::trim())
             .wrap(Cors::permissive())
-            .app_data(Data::new(lobby.clone()))
+            .app_data(Data::new(addr.clone()))
             .service(hello)
+            .service(available_rooms)
             .service(create_room)
             .service(join_room)
     })

@@ -12,7 +12,10 @@ pub type RoomId = Uuid;
 
 use crate::{
     commands::Command,
-    messages::{CommandMessage, ConnectMessage, DisconnectMessage, StringMessage},
+    messages::{
+        AvailableRoom, AvailableRooms, CommandMessage, ConnectMessage, DisconnectMessage,
+        StringMessage,
+    },
 };
 
 use self::{client::Client, room::Room};
@@ -42,6 +45,14 @@ impl Lobby {
         for client in self.sessions.values() {
             client.addr().do_send(StringMessage(msg.to_owned()));
         }
+    }
+
+    pub fn available_rooms(&self) -> Vec<RoomId> {
+        self.rooms
+            .iter()
+            .filter(|(_, room)| room.clients().len() < 2)
+            .map(|(id, _)| *id)
+            .collect()
     }
 }
 
@@ -161,5 +172,26 @@ impl Handler<CommandMessage> for Lobby {
                 return;
             }
         }
+    }
+}
+
+impl Handler<AvailableRooms> for Lobby {
+    type Result = Vec<RoomId>;
+
+    fn handle(&mut self, _: AvailableRooms, _: &mut Self::Context) -> Self::Result {
+        self.available_rooms()
+    }
+}
+
+impl Handler<AvailableRoom> for Lobby {
+    type Result = bool;
+
+    fn handle(&mut self, msg: AvailableRoom, _: &mut Self::Context) -> Self::Result {
+        let room_id = msg.0;
+        let room = match self.rooms.get(&room_id) {
+            Some(room) => room,
+            None => return false,
+        };
+        room.clients().len() < 2
     }
 }
