@@ -87,6 +87,7 @@ impl Actor for Con {
     }
 }
 
+//Receive message from lobby and send to client
 impl Handler<StringMessage> for Con {
     type Result = ();
 
@@ -95,8 +96,25 @@ impl Handler<StringMessage> for Con {
     }
 }
 
+//Receive message from client and send to lobby
 impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Con {
     fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
-        todo!()
+        match msg {
+            Ok(ws::Message::Ping(msg)) => {
+                self.heartbeat = Instant::now();
+                ctx.pong(&msg);
+            }
+            Ok(ws::Message::Pong(_)) => {
+                self.heartbeat = Instant::now();
+            }
+            Ok(ws::Message::Text(text)) => {
+                println!("Text: {}", text);
+            }
+            Ok(ws::Message::Close(reason)) => {
+                ctx.close(reason);
+                ctx.stop();
+            }
+            _ => (),
+        }
     }
 }

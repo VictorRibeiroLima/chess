@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     rc::Rc,
+    sync::Arc,
 };
 
 use actix::{Actor, Handler};
@@ -11,17 +12,13 @@ use crate::{
     ClientId, RoomId,
 };
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Lobby {
-    sessions: HashMap<ClientId, Rc<Client>>,
-    rooms: HashMap<RoomId, HashSet<Rc<Client>>>,
+    sessions: HashMap<ClientId, Arc<Client>>,
+    rooms: HashMap<RoomId, HashSet<Arc<Client>>>,
 }
 
 impl Lobby {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     pub fn send_room_message(&self, room: RoomId, msg: &str) -> Option<()> {
         let room = self.rooms.get(&room)?;
         for client in room {
@@ -51,10 +48,17 @@ impl Handler<ConnectMessage> for Lobby {
     type Result = ();
 
     fn handle(&mut self, msg: ConnectMessage, _: &mut Self::Context) -> Self::Result {
-        let client = Rc::new(msg.client);
+        let client = Arc::new(msg.client);
         let client_id = client.id();
         let room_id = msg.room_id;
-        let room = self.rooms.get_mut(&room_id).unwrap();
+        let room = match self.rooms.get_mut(&room_id) {
+            Some(room) => room,
+            None => {
+                let room = HashSet::new();
+                self.rooms.insert(room_id, room);
+                self.rooms.get_mut(&room_id).unwrap()
+            }
+        };
 
         room.insert(client.clone());
 
