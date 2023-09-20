@@ -89,7 +89,9 @@
         "roomId": "1421a2b3-4c5d-6e7f-8g9h-0i1j2k3l4m5n",
         "clientId": "1421a2b3-4c5d-6e7f-8g9h-0i1j2k3l4m5n",
         "result": {
-            "movement": ["a2", "a4"]
+            "movement": {
+                "valid": ["a2", "a3"],
+            }
         }
     }
 }
@@ -99,8 +101,35 @@ Available success results:
 - `movement`
 ``` json
 {
-    "movement": ["a2", "a4"]
+    "movement": {
+        "valid": ["a2", "a3"],
+    }
 }
+
+{
+    "movement": {
+        "capture": ["a4", "b5"],
+    }
+}
+
+{
+    "movement": {
+        "enPassant": ["a4", "b5"],
+    }
+}
+
+{
+    "movement": {
+        "castling": [["e1", "c1"], ["a1", "d1"]],
+    }
+}
+
+{
+    "movement": {
+        "initialDoubleAdvance": ["a2", "a4"],
+    }
+}
+
 ```
 - `promotion`
 ``` json
