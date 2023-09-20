@@ -153,7 +153,13 @@ impl Handler<CommandMessage> for Lobby {
         let result = match command {
             Command::Move { from, to } => room.make_move(client_id, from, to),
             Command::Promote { piece } => room.promote(client_id, piece),
-            Command::Resign => room.resign(client_id),
+            Command::Resign(resigned) => {
+                if resigned {
+                    room.resign(client_id)
+                } else {
+                    Ok(())
+                }
+            }
         };
 
         match result {

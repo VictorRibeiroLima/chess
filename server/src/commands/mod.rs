@@ -7,7 +7,7 @@ use engine::piece::{position::Position, Type};
 pub enum Command {
     Move { from: Position, to: Position },
     Promote { piece: Type },
-    Resign,
+    Resign(bool),
 }
 
 #[derive(Debug, serde::Serialize)]
