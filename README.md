@@ -27,7 +27,7 @@
 
 ### TODO
 
-- [ ] Basic move generation
+- [x] Basic move generation
 - [ ] Basic evaluation function
 - [ ] Minimax
 - [ ] Alpha-beta pruning
@@ -38,12 +38,12 @@
 
 ### TODO
 
-- [ ] Basic websocket server
-- [ ] Game communication (gRPC?)
-- [ ] Room creation
-- [ ] Room joining
-- [ ] Room listing
-- [ ] Room management
+- [x] Basic websocket server
+- [x] Game communication
+- [x] Room creation
+- [x] Room joining
+- [x] Room listing
+- [x] Room management
 - [ ] Socket pooling?
 
 ## CLI Client
