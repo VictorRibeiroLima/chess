@@ -20,12 +20,12 @@ mod con;
 mod lobby;
 mod messages;
 
-#[get("/")]
+#[get("api")]
 async fn hello() -> impl Responder {
     HttpResponse::Ok().body("Hello world!")
 }
 
-#[get("/room")]
+#[get("api/room")]
 async fn available_rooms(addr: Data<Arc<Addr<Lobby>>>) -> impl Responder {
     let rooms = addr.get_ref().send(messages::AvailableRooms).await;
     match rooms {
@@ -34,7 +34,7 @@ async fn available_rooms(addr: Data<Arc<Addr<Lobby>>>) -> impl Responder {
     }
 }
 
-#[get("/room/create")]
+#[get("ws/room/create")]
 async fn create_room(
     req: HttpRequest,
     stream: Payload,
@@ -48,7 +48,7 @@ async fn create_room(
     Ok(resp)
 }
 
-#[get("/room/{room_id}")]
+#[get("ws/room/{room_id}")]
 async fn join_room(
     room_id: Path<Uuid>,
     req: HttpRequest,
