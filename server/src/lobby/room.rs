@@ -133,7 +133,13 @@ impl Room {
     pub fn resign(&mut self, client_id: ClientId) -> Result<(), RoomError> {
         self.can_play(client_id)?;
 
-        let _result = self.board.resign();
+        self.board.resign();
+
+        if let Some(winner) = self.board.get_winner() {
+            let result = ResultMessage::winner(self.id, client_id, winner);
+            self.send_room_result(result);
+        }
+
         Ok(())
     }
 
