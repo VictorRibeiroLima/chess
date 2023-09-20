@@ -1,5 +1,11 @@
 # Chess Game
 
+This is a chess game monorepo. It contains the following packages:
+- [Engine](#engine) - The chess engine
+- [Chess AI](#chess-ai) - The chess AI
+- [Server](#server) - The server
+- [CLI Client](#cli-client) - The CLI client
+
 ## Engine
 
 ### TODO
@@ -36,6 +42,15 @@
 
 ## Server
 
+### Table of contents
+- [Endpoints](#endpoints)
+- [Room commands](#room-commands)
+    - [Movement](#movement)
+    - [Promote](#promote)
+    - [Resign](#resign)
+- [Responses](#responses)
+    - [Error](#error)
+    - [Success](#success)
 ### Endpoints
 - `GET api/` - Health check
 - `GET api/room` - Get all available rooms
