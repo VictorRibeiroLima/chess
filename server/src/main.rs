@@ -80,6 +80,8 @@ async fn main() -> std::io::Result<()> {
     let lobby = Lobby::default();
     let addr = lobby.start();
     let addr = Arc::new(addr);
+
+    println!("Server running at http://localhost:8080");
     HttpServer::new(move || {
         App::new()
             .wrap(NormalizePath::trim())
@@ -90,7 +92,7 @@ async fn main() -> std::io::Result<()> {
             .service(create_room)
             .service(join_room)
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind(("0.0.0.0", 8080))?
     .run()
     .await
 }
