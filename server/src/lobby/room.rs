@@ -5,10 +5,7 @@ use engine::{
     piece::{position::Position, ChessPiece, Color, Type},
 };
 
-use crate::messages::{
-    success::{SuccessMessage, SuccessResult},
-    ErrorMessage,
-};
+use crate::messages::result::ResultMessage;
 
 use super::{client::Client, errors::RoomError, ClientId, RoomId};
 
@@ -83,22 +80,20 @@ impl Room {
 
         match result {
             Ok(movement) => {
-                let result = SuccessMessage {
-                    client_id,
-                    room_id: self.id,
-                    result: SuccessResult::Movement(movement),
-                };
+                let result = ResultMessage::movement(self.id, client_id, movement);
 
-                self.send_room_success(result);
+                self.send_room_result(result);
             }
             Err(e) => {
                 let client = self.client(client_id)?;
-                client.error_addr().do_send(ErrorMessage {
-                    client_id,
-                    error: e.to_string(),
-                    room_id: self.id,
-                });
+                let err = ResultMessage::error(self.id, client_id, e.to_string());
+                client.result_addr().do_send(err);
             }
+        }
+
+        if let Some(winner) = self.board.get_winner() {
+            let result = ResultMessage::winner(self.id, client_id, winner);
+            self.send_room_result(result);
         }
 
         Ok(())
@@ -121,21 +116,14 @@ impl Room {
 
         match result {
             Ok(promotion) => {
-                let result = SuccessMessage {
-                    client_id,
-                    room_id: self.id,
-                    result: SuccessResult::Promotion(promotion),
-                };
+                let result = ResultMessage::promotion(self.id, client_id, promotion);
 
-                self.send_room_success(result);
+                self.send_room_result(result);
             }
             Err(e) => {
                 let client = self.client(client_id)?;
-                client.error_addr().do_send(ErrorMessage {
-                    client_id,
-                    error: e.to_string(),
-                    room_id: self.id,
-                });
+                let err = ResultMessage::error(self.id, client_id, e.to_string());
+                client.result_addr().do_send(err);
             }
         }
 
@@ -181,9 +169,9 @@ impl Room {
         Ok(client)
     }
 
-    fn send_room_success(&self, msg: SuccessMessage) {
+    fn send_room_result(&self, msg: ResultMessage) {
         for client in &self.clients {
-            client.success_addr().do_send(msg.clone());
+            client.result_addr().do_send(msg.clone());
         }
     }
 }

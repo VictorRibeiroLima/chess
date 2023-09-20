@@ -54,6 +54,7 @@ impl Error for MovementError {}
 /// Castling((Position, Position), (Position, Position)) - A valid castling movement (king, rock) (from, to)
 /// InitialDoubleAdvance((Position, Position)) - A valid initial double advance of a pawn movement (from, to)
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum OkMovement {
     Valid((Position, Position)),
     Capture((Position, Position)),

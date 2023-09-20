@@ -16,6 +16,7 @@ pub mod position;
 mod test;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum Type {
     Pawn,
     Knight,
@@ -40,6 +41,7 @@ impl Display for Type {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum Color {
     White,
     Black,

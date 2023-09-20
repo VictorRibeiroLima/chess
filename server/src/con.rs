@@ -3,10 +3,7 @@ use std::time::Instant;
 use crate::{
     commands,
     lobby::{client::Client, Lobby},
-    messages::{
-        success::SuccessMessage, CommandMessage, ConnectMessage, DisconnectMessage, ErrorMessage,
-        StringMessage,
-    },
+    messages::{result::ResultMessage, CommandMessage, ConnectMessage, DisconnectMessage},
     CLIENT_TIMEOUT, HEARTBEAT_INTERVAL,
 };
 use actix::{
@@ -81,29 +78,10 @@ impl Actor for Con {
     }
 }
 
-//Receive message from lobby and send to client
-impl Handler<StringMessage> for Con {
+impl Handler<ResultMessage> for Con {
     type Result = ();
 
-    fn handle(&mut self, msg: StringMessage, ctx: &mut Self::Context) -> Self::Result {
-        ctx.text(msg.0);
-    }
-}
-
-impl Handler<ErrorMessage> for Con {
-    type Result = ();
-
-    fn handle(&mut self, msg: ErrorMessage, ctx: &mut Self::Context) -> Self::Result {
-        if msg.client_id == self.id {
-            ctx.text(msg.error);
-        }
-    }
-}
-
-impl Handler<SuccessMessage> for Con {
-    type Result = ();
-
-    fn handle(&mut self, msg: SuccessMessage, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: ResultMessage, ctx: &mut Self::Context) -> Self::Result {
         let msg = serde_json::to_string(&msg).unwrap();
         ctx.text(msg);
     }
@@ -127,11 +105,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Con {
                     Ok(command) => command,
                     Err(_) => {
                         let err = commands::Error::InvalidCommand;
-                        let err = ErrorMessage {
-                            client_id: self.id,
-                            room_id: self.room,
-                            error: err.to_string(),
-                        };
+                        let err = ResultMessage::error(self.room, self.id, err.to_string());
                         let err = serde_json::to_string(&err).unwrap();
                         ctx.text(err);
                         return;

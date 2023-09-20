@@ -13,9 +13,8 @@ pub type RoomId = Uuid;
 use crate::{
     commands::Command,
     messages::{
-        success::{ConnectSuccess, DisconnectSuccess, SuccessMessage, SuccessResult},
-        AvailableRoom, AvailableRooms, CommandMessage, ConnectMessage, DisconnectMessage,
-        ErrorMessage, StringMessage,
+        result::ResultMessage, AvailableRoom, AvailableRooms, CommandMessage, ConnectMessage,
+        DisconnectMessage,
     },
 };
 
@@ -28,30 +27,22 @@ pub struct Lobby {
 }
 
 impl Lobby {
-    pub fn send_room_success(&self, room: RoomId, result: SuccessMessage) -> Option<()> {
-        let room = self.rooms.get(&room)?;
+    pub fn send_room_result(&self, room_id: RoomId, result: ResultMessage) {
+        let room = match self.rooms.get(&room_id) {
+            Some(room) => room,
+            None => return,
+        };
         for client in room.clients() {
-            client.success_addr().do_send(result.clone());
+            client.result_addr().do_send(result.clone());
         }
-        Some(())
     }
 
-    pub fn _send_client_success(&self, client_id: ClientId, result: SuccessMessage) -> Option<()> {
-        let client = self.sessions.get(&client_id)?;
-        client.success_addr().do_send(result);
-        Some(())
-    }
-
-    pub fn send_client_error(&self, err: ErrorMessage) -> Option<()> {
-        let client = self.sessions.get(&err.client_id)?;
-        client.error_addr().do_send(err);
-        Some(())
-    }
-
-    pub fn _send_all_message(&self, msg: &str) {
-        for client in self.sessions.values() {
-            client._string_addr().do_send(StringMessage(msg.to_owned()));
-        }
+    pub fn send_client_result(&self, client_id: ClientId, result: ResultMessage) {
+        let client = match self.sessions.get(&client_id) {
+            Some(client) => client,
+            None => return,
+        };
+        client.result_addr().do_send(result);
     }
 
     pub fn available_rooms(&self) -> Vec<RoomId> {
@@ -86,27 +77,15 @@ impl Handler<ConnectMessage> for Lobby {
         let player_color = match room.add_client(client.clone()) {
             Ok(color) => color,
             Err(e) => {
-                let err = ErrorMessage {
-                    client_id,
-                    room_id,
-                    error: e.to_string(),
-                };
-                self.send_client_error(err);
+                let err = ResultMessage::error(room_id, client_id, e.to_string());
+                self.send_client_result(client_id, err);
                 return;
             }
         };
 
-        let join_message = SuccessMessage {
-            client_id,
-            room_id,
-            result: SuccessResult::Connect(ConnectSuccess {
-                client_id,
-                room_id,
-                color: player_color,
-            }),
-        };
+        let join_message = ResultMessage::connect(room_id, client_id, player_color);
 
-        self.send_room_success(room_id, join_message);
+        self.send_room_result(room_id, join_message);
         self.sessions.insert(client.id(), client);
     }
 }
@@ -121,12 +100,8 @@ impl Handler<DisconnectMessage> for Lobby {
             Some(room) => room,
             None => {
                 let error_message = format!("Room {} does not exist", room_id);
-                let err = ErrorMessage {
-                    client_id,
-                    room_id,
-                    error: error_message,
-                };
-                self.send_client_error(err);
+                let err = ResultMessage::error(room_id, client_id, error_message);
+                self.send_client_result(client_id, err);
                 return;
             }
         };
@@ -140,12 +115,8 @@ impl Handler<DisconnectMessage> for Lobby {
         match room.remove_client(client) {
             Ok(_) => (),
             Err(e) => {
-                let err = ErrorMessage {
-                    client_id,
-                    room_id,
-                    error: e.to_string(),
-                };
-                self.send_client_error(err);
+                let err = ResultMessage::error(room_id, client_id, e.to_string());
+                self.send_client_result(client_id, err);
                 return;
             }
         }
@@ -155,13 +126,9 @@ impl Handler<DisconnectMessage> for Lobby {
             println!("Room {} is empty, removing", room_id);
             self.rooms.remove(&room_id);
         } else {
-            let leave_message = SuccessMessage {
-                client_id,
-                room_id,
-                result: SuccessResult::Disconnect(DisconnectSuccess { client_id, room_id }),
-            };
+            let leave_message = ResultMessage::disconnect(room_id, client_id);
 
-            self.send_room_success(room_id, leave_message);
+            self.send_room_result(room_id, leave_message);
         }
     }
 }
@@ -177,12 +144,8 @@ impl Handler<CommandMessage> for Lobby {
             Some(room) => room,
             None => {
                 let error_message = format!("Room {} does not exist", room_id);
-                let err = ErrorMessage {
-                    client_id,
-                    room_id,
-                    error: error_message,
-                };
-                self.send_client_error(err);
+                let err = ResultMessage::error(room_id, client_id, error_message);
+                self.send_client_result(client_id, err);
                 return;
             }
         };
@@ -196,12 +159,8 @@ impl Handler<CommandMessage> for Lobby {
         match result {
             Ok(_) => (),
             Err(e) => {
-                let err = ErrorMessage {
-                    client_id,
-                    room_id,
-                    error: e.to_string(),
-                };
-                self.send_client_error(err);
+                let err = ResultMessage::error(room_id, client_id, e.to_string());
+                self.send_client_result(client_id, err);
                 return;
             }
         }

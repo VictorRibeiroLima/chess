@@ -11,6 +11,7 @@ pub enum Command {
 }
 
 #[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum Error {
     InvalidCommand,
 }

@@ -1,8 +1,6 @@
 use actix::prelude::Message;
 
-use serde::{Deserialize, Serialize};
-
-pub mod success;
+pub mod result;
 
 use crate::{
     commands::Command,
@@ -16,10 +14,6 @@ pub struct AvailableRooms;
 #[derive(Message)]
 #[rtype(result = "bool")]
 pub struct AvailableRoom(pub RoomId);
-
-#[derive(Message)]
-#[rtype(result = "()")]
-pub struct StringMessage(pub String);
 
 #[derive(Message)]
 #[rtype(result = "()")]
@@ -43,13 +37,4 @@ pub struct ConnectMessage {
 pub struct DisconnectMessage {
     pub room_id: RoomId,
     pub client_id: ClientId,
-}
-
-#[derive(Message, Deserialize, Serialize)]
-#[rtype(result = "()")]
-#[serde(rename_all = "camelCase")]
-pub struct ErrorMessage {
-    pub room_id: RoomId,
-    pub client_id: ClientId,
-    pub error: String,
 }
