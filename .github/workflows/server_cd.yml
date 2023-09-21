@@ -37,7 +37,7 @@ jobs:
 
           - name: Build image
             run: |
-              docker build build --platform linux/amd64 -t $(echo $IMAGE_NAME) -f ./server/Dockerfile --cache-to type=gha --cache-from type=gha --load
+              docker build --platform linux/amd64 -t $(echo $IMAGE_NAME) -f ./server/Dockerfile --cache-to type=gha --cache-from type=gha --load .
             
           - name: Push image
             run: |
