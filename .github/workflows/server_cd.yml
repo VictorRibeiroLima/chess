@@ -39,6 +39,6 @@ jobs:
                 context: .
                 file: server/Dockerfile
                 push: true
-                tags: ${{ env.REGISTRY }}/${{env.IMAGE_NAME}}:latest
+                tags: ${{ env.REGISTRY }}:latest
                 cache-from: type=gha
                 cache-to: type=gha,mode=max
