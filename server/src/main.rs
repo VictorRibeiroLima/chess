@@ -22,7 +22,7 @@ mod messages;
 
 #[get("api")]
 async fn hello() -> impl Responder {
-    HttpResponse::Ok().body("Hello chess world!")
+    HttpResponse::Ok().body("Hello chess world (cached)!")
 }
 
 #[get("api/room")]
