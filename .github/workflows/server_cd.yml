@@ -37,10 +37,10 @@ jobs:
 
           - name: Build image
             run: |
-              docker build build --platform linux/amd64 -t $(echo IMAGE_NAME) -f ./server/Dockerfile --cache-to type=gha --cache-from type=gha
+              docker build build --platform linux/amd64 -t $(echo $IMAGE_NAME) -f ./server/Dockerfile --cache-to type=gha --cache-from type=gha --load
             
           - name: Push image
             run: |
-              docker tag $(echo IMAGE_NAME):latest $(echo REGISTRY)/$(echo IMAGE_NAME):latest
-              docker push $(echo REGISTRY)/$(echo IMAGE_NAME):latest
+              docker tag $(echo $IMAGE_NAME):latest $(echo $REGISTRY)/$(echo $IMAGE_NAME):latest
+              docker push $(echo $REGISTRY)/$(echo $IMAGE_NAME):latest
             
