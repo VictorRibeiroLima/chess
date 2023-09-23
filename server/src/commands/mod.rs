@@ -8,6 +8,7 @@ pub enum Command {
     Move { from: Position, to: Position },
     Promote { piece: Type },
     Resign(bool),
+    Reset(bool),
 }
 
 #[derive(Debug, serde::Serialize)]

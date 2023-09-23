@@ -24,15 +24,36 @@ impl ResultMessage {
         })
     }
 
-    pub fn movement(room_id: RoomId, client_id: ClientId, movement: OkMovement) -> Self {
+    pub fn movement(
+        room_id: RoomId,
+        client_id: ClientId,
+        movement: OkMovement,
+        promotion: Option<Color>,
+        check: Option<Color>,
+    ) -> Self {
+        let result = MovementResult {
+            movement_type: movement,
+            promotion,
+            check,
+        };
         Self::Success(SuccessMessage {
             room_id,
             client_id,
-            result: SuccessResult::Movement(movement),
+            result: SuccessResult::Movement(result),
         })
     }
 
-    pub fn promotion(room_id: RoomId, client_id: ClientId, promotion: (Position, Type)) -> Self {
+    pub fn promotion(
+        room_id: RoomId,
+        client_id: ClientId,
+        promotion: (Position, Type),
+        check: Option<Color>,
+    ) -> Self {
+        let promotion = PromotionResult {
+            position: promotion.0,
+            piece: promotion.1,
+            check,
+        };
         Self::Success(SuccessMessage {
             room_id,
             client_id,
@@ -67,6 +88,14 @@ impl ResultMessage {
             result: SuccessResult::Winner(color),
         })
     }
+
+    pub fn reset(room_id: RoomId, client_id: ClientId) -> Self {
+        Self::Success(SuccessMessage {
+            room_id,
+            client_id,
+            result: SuccessResult::Reset(true),
+        })
+    }
 }
 
 #[derive(Serialize, Clone)]
@@ -88,11 +117,29 @@ pub struct SuccessMessage {
 #[derive(Serialize, Clone, Copy)]
 #[serde(rename_all = "camelCase")]
 enum SuccessResult {
-    Movement(OkMovement),
-    Promotion((Position, Type)),
+    Movement(MovementResult),
+    Promotion(PromotionResult),
     Disconnect(DisconnectSuccess),
     Connect(ConnectSuccess),
     Winner(Color),
+    Reset(bool),
+}
+
+#[derive(Serialize, Clone, Copy)]
+#[serde(rename_all = "camelCase")]
+struct MovementResult {
+    #[serde(flatten)]
+    movement_type: OkMovement,
+    promotion: Option<Color>,
+    check: Option<Color>,
+}
+
+#[derive(Serialize, Clone, Copy)]
+#[serde(rename_all = "camelCase")]
+struct PromotionResult {
+    position: Position,
+    piece: Type,
+    check: Option<Color>,
 }
 
 #[derive(Serialize, Clone, Copy)]

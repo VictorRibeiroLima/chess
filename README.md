@@ -84,6 +84,13 @@ This is a chess game monorepo. It contains the following packages:
 }
 ```
 
+### Reset
+``` json
+{
+    "reset": true
+}
+```
+
 ### Responses
 
 #### Error
@@ -106,6 +113,8 @@ This is a chess game monorepo. It contains the following packages:
         "result": {
             "movement": {
                 "valid": ["a2", "a3"],
+                "promotion": null,
+                "check": null,
             }
         }
     }
@@ -118,30 +127,40 @@ Available success results:
 {
     "movement": {
         "valid": ["a2", "a3"],
+        "promotion": null,
+        "check": null,
     }
 }
 
 {
     "movement": {
-        "capture": ["a4", "b5"],
+        "capture": ["a7", "b8"],
+        "promotion": "white",
+        "check": "black"
     }
 }
 
 {
     "movement": {
-        "enPassant": ["a4", "b5"],
+        "enPassant": ["a5", "b6"],
+        "promotion": null,
+        "check": null,
     }
 }
 
 {
     "movement": {
         "castling": [["e1", "c1"], ["a1", "d1"]],
+        "promotion": null,
+        "check": null,
     }
 }
 
 {
     "movement": {
         "initialDoubleAdvance": ["a2", "a4"],
+        "promotion": null,
+        "check": null,
     }
 }
 
@@ -149,7 +168,11 @@ Available success results:
 - `promotion`
 ``` json
 {
-    "promotion": ["a8", "queen"]
+    "promotion": {
+        "type": "queen",
+        "position": "a8",
+        "check": "black"
+    }
 }
 ```
 - `winner`

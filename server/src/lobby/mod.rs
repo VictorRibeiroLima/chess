@@ -160,6 +160,13 @@ impl Handler<CommandMessage> for Lobby {
                     Ok(())
                 }
             }
+            Command::Reset(reset) => {
+                if reset {
+                    room.reset(client_id)
+                } else {
+                    Ok(())
+                }
+            }
         };
 
         match result {

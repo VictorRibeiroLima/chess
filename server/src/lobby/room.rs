@@ -80,7 +80,10 @@ impl Room {
 
         match result {
             Ok(movement) => {
-                let result = ResultMessage::movement(self.id, client_id, movement);
+                let promotion = self.board.get_promotion_color();
+                let check = self.board.get_check();
+                let result =
+                    ResultMessage::movement(self.id, client_id, movement, promotion, check);
 
                 self.send_room_result(result);
             }
@@ -116,7 +119,8 @@ impl Room {
 
         match result {
             Ok(promotion) => {
-                let result = ResultMessage::promotion(self.id, client_id, promotion);
+                let check = self.board.get_check();
+                let result = ResultMessage::promotion(self.id, client_id, promotion, check);
 
                 self.send_room_result(result);
             }
@@ -139,6 +143,22 @@ impl Room {
             let result = ResultMessage::winner(self.id, client_id, winner);
             self.send_room_result(result);
         }
+
+        Ok(())
+    }
+
+    pub fn reset(&mut self, client_id: ClientId) -> Result<(), RoomError> {
+        self.can_play(client_id)?;
+
+        if self.board.get_winner().is_none() {
+            return Err(RoomError::GameNotOver);
+        };
+
+        self.board.reset();
+
+        let result = ResultMessage::reset(self.id, client_id);
+
+        self.send_room_result(result);
 
         Ok(())
     }

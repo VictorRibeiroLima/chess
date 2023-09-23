@@ -113,6 +113,19 @@ impl Board {
         }
     }
 
+    pub fn reset(&mut self) {
+        self.turn = Color::White;
+        self.pieces = Board::initial_pieces_setup();
+        self.winner = None;
+        self.check = None;
+        self.last_move = None;
+        self.promotion = None;
+        self.white_king_position = Position { x: 4, y: 0 };
+        self.black_king_position = Position { x: 4, y: 7 };
+        self.white_attacked_positions = [[false; 8]; 8];
+        self.black_attacked_positions = [[false; 8]; 8];
+    }
+
     pub fn get_winner(&self) -> Option<Color> {
         self.winner
     }
@@ -131,6 +144,14 @@ impl Board {
 
     pub fn get_promotion(&self) -> Option<Position> {
         self.promotion
+    }
+
+    pub fn get_promotion_color(&self) -> Option<Color> {
+        if let Some(promotion) = self.promotion {
+            let piece = self.get_piece_at(&promotion).unwrap();
+            return Some(piece.get_color());
+        }
+        None
     }
 
     pub fn get_pieces(&self) -> &[[Option<ChessPiece>; 8]; 8] {
@@ -197,6 +218,10 @@ impl Board {
         from: Position,
         to: Position,
     ) -> Result<OkMovement, MovementError> {
+        if self.winner.is_some() {
+            self.last_move = Some(Err(MovementError::GameIsOver));
+            return Err(MovementError::GameIsOver);
+        }
         let piece = self.get_piece_at(&from).cloned();
         if from == to {
             self.last_move = Some(Err(MovementError::SamePosition));

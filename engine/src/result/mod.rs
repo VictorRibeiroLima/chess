@@ -29,6 +29,7 @@ pub enum MovementError {
     CreatesOwnCheck,
     SamePosition,
     PromotionNotSpecified,
+    GameIsOver,
 }
 
 impl Display for MovementError {
@@ -40,6 +41,7 @@ impl Display for MovementError {
             MovementError::CreatesOwnCheck => "Creates own check",
             MovementError::SamePosition => "Same position",
             MovementError::PromotionNotSpecified => "Promotion not specified",
+            MovementError::GameIsOver => "Game is over",
         };
         write!(f, "{}", error_message)
     }
