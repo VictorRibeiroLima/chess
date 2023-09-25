@@ -169,7 +169,7 @@ Available success results:
 ``` json
 {
     "promotion": {
-        "type": "queen",
+        "piece": "queen",
         "position": "a8",
         "check": "black"
     }
