@@ -58,7 +58,9 @@ impl Display for Color {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ChessPiece {
+    #[serde(rename = "type")]
     piece_type: Type,
     color: Color,
     pub moved: bool,
