@@ -57,7 +57,7 @@ impl Display for Color {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 pub struct ChessPiece {
     piece_type: Type,
     color: Color,

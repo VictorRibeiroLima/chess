@@ -163,6 +163,19 @@ impl Room {
         Ok(())
     }
 
+    pub fn enemy_id(&self, client_id: ClientId) -> Result<Option<ClientId>, RoomError> {
+        let color = self.get_color(client_id)?;
+        let enemy_id = match color {
+            Color::White => self.black,
+            Color::Black => self.white,
+        };
+        Ok(enemy_id)
+    }
+
+    pub fn pieces(&self) -> [[Option<ChessPiece>; 8]; 8] {
+        *self.board.get_pieces()
+    }
+
     fn can_play(&self, client_id: ClientId) -> Result<(), RoomError> {
         let color = self.get_color(client_id)?;
         let turn = self.board.get_turn();

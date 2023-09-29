@@ -1,6 +1,6 @@
 use actix::Message;
 use engine::{
-    piece::{position::Position, Color, Type},
+    piece::{position::Position, ChessPiece, Color, Type},
     result::OkMovement,
 };
 use serde::Serialize;
@@ -69,14 +69,24 @@ impl ResultMessage {
         })
     }
 
-    pub fn connect(room_id: RoomId, client_id: ClientId, color: Color) -> Self {
+    pub fn connect(
+        room_id: RoomId,
+        client_id: ClientId,
+        enemy_id: Option<ClientId>,
+        con_type: ConnectionType,
+        pieces: [[Option<ChessPiece>; 8]; 8],
+        color: Color,
+    ) -> Self {
         Self::Success(SuccessMessage {
             room_id,
             client_id,
             result: SuccessResult::Connect(ConnectSuccess {
                 room_id,
                 client_id,
+                enemy_id,
+                con_type,
                 color,
+                pieces,
             }),
         })
     }
@@ -154,5 +164,15 @@ struct DisconnectSuccess {
 struct ConnectSuccess {
     room_id: RoomId,
     client_id: ClientId,
+    enemy_id: Option<ClientId>,
+    con_type: ConnectionType,
     color: Color,
+    pieces: [[Option<ChessPiece>; 8]; 8],
+}
+
+#[derive(Serialize, Clone, Copy)]
+#[serde(rename_all = "camelCase")]
+pub enum ConnectionType {
+    EnemyClient,
+    SelfClient,
 }

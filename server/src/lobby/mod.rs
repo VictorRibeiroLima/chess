@@ -1,6 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use actix::{Actor, Handler};
+use engine::piece::Color;
 use uuid::Uuid;
 
 pub mod client;
@@ -13,8 +14,8 @@ pub type RoomId = Uuid;
 use crate::{
     commands::Command,
     messages::{
-        result::ResultMessage, AvailableRoom, AvailableRooms, CommandMessage, ConnectMessage,
-        DisconnectMessage,
+        result::{ConnectionType, ResultMessage},
+        AvailableRoom, AvailableRooms, CommandMessage, ConnectMessage, DisconnectMessage,
     },
 };
 
@@ -34,6 +35,38 @@ impl Lobby {
         };
         for client in room.clients() {
             client.result_addr().do_send(result.clone());
+        }
+    }
+
+    pub fn send_connection_message(&self, room_id: RoomId, client_id: ClientId, color: Color) {
+        let room = match self.rooms.get(&room_id) {
+            Some(room) => room,
+            None => return,
+        };
+        let pieces = room.pieces();
+        for client in room.clients() {
+            let enemy_id = room.enemy_id(client_id).unwrap(); //TODO: handle error
+            if client.id() == client_id {
+                let message = ResultMessage::connect(
+                    room_id,
+                    client_id,
+                    enemy_id,
+                    ConnectionType::SelfClient,
+                    pieces,
+                    color,
+                );
+                client.result_addr().do_send(message);
+            } else {
+                let message = ResultMessage::connect(
+                    room_id,
+                    client.id(),
+                    enemy_id,
+                    ConnectionType::EnemyClient,
+                    pieces,
+                    color,
+                );
+                client.result_addr().do_send(message);
+            }
         }
     }
 
@@ -83,9 +116,8 @@ impl Handler<ConnectMessage> for Lobby {
             }
         };
 
-        let join_message = ResultMessage::connect(room_id, client_id, player_color);
+        self.send_connection_message(room_id, client_id, player_color);
 
-        self.send_room_result(room_id, join_message);
         self.sessions.insert(client.id(), client);
     }
 }
