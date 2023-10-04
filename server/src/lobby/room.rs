@@ -3,19 +3,41 @@ use std::{collections::HashSet, sync::Arc};
 use engine::{
     board::Board,
     piece::{position::Position, ChessPiece, Color, Type},
+    result::OkMovement,
 };
 
 use crate::messages::result::ResultMessage;
 
 use super::{client::Client, errors::RoomError, ClientId, RoomId};
 
-#[derive(PartialEq, Eq, Clone)]
+use serde::Serialize;
+
+#[derive(Clone, Copy, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TurnMoveType {
+    Movement(OkMovement),
+    Promotion { to: ChessPiece, on: Position },
+}
+
+#[derive(Clone, Copy, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TurnMove {
+    pub turn_number: u32,
+    pub piece: ChessPiece,
+    pub client_id: ClientId,
+    #[serde(rename = "type", flatten)]
+    pub turn_move_type: TurnMoveType,
+}
+
+#[derive(Clone)]
 pub struct Room {
     id: RoomId,
     clients: HashSet<Arc<Client>>,
     white: Option<ClientId>,
     black: Option<ClientId>,
     board: Board,
+    turn_number: u32,
+    moves: Vec<TurnMove>,
 }
 
 impl Room {
@@ -26,6 +48,8 @@ impl Room {
             white: None,
             black: None,
             board: Board::new(),
+            turn_number: 1,
+            moves: Vec::new(),
         }
     }
 
@@ -76,9 +100,12 @@ impl Room {
     ) -> Result<(), RoomError> {
         self.can_play(client_id)?;
 
+        let turn_num = self.turn_number;
+        let turn = self.board.get_turn();
+
         let result = self.board.move_piece(from, to);
 
-        match result {
+        let ok_move = match result {
             Ok(movement) => {
                 let promotion = self.board.get_promotion_color();
                 let check = self.board.get_check();
@@ -86,13 +113,29 @@ impl Room {
                     ResultMessage::movement(self.id, client_id, movement, promotion, check);
 
                 self.send_room_result(result);
+                movement
             }
             Err(e) => {
                 let client = self.client(client_id)?;
                 let err = ResultMessage::error(self.id, client_id, e.to_string());
                 client.result_addr().do_send(err);
+                return Ok(());
             }
+        };
+
+        let turn_move = TurnMove {
+            turn_number: turn_num,
+            piece: *self.board.get_piece_at(&to).unwrap(), //SAFE: We just moved this piece
+            client_id,
+            turn_move_type: TurnMoveType::Movement(ok_move),
+        };
+        self.moves.push(turn_move);
+
+        if turn == Color::Black {
+            self.turn_number += 1;
         }
+
+        println!("{}", self.board);
 
         if let Some(winner) = self.board.get_winner() {
             let result = ResultMessage::winner(self.id, client_id, winner);
@@ -105,6 +148,14 @@ impl Room {
     pub fn promote(&mut self, client_id: ClientId, piece: Type) -> Result<(), RoomError> {
         self.can_play(client_id)?;
         let color = self.get_color(client_id)?;
+        let turn = self.board.get_turn();
+        let turn_num = {
+            if turn == Color::White {
+                self.turn_number
+            } else {
+                self.turn_number - 1
+            }
+        };
 
         let piece = match piece {
             Type::Queen => ChessPiece::create_queen(color),
@@ -117,19 +168,33 @@ impl Room {
 
         let result = self.board.promote(piece);
 
-        match result {
+        let promotion = match result {
             Ok(promotion) => {
                 let check = self.board.get_check();
                 let result = ResultMessage::promotion(self.id, client_id, promotion, check);
 
                 self.send_room_result(result);
+                promotion
             }
             Err(e) => {
                 let client = self.client(client_id)?;
                 let err = ResultMessage::error(self.id, client_id, e.to_string());
                 client.result_addr().do_send(err);
+                return Ok(());
             }
-        }
+        };
+
+        let turn_move = TurnMove {
+            turn_number: turn_num,
+            piece: ChessPiece::create_pawn(color),
+            client_id,
+            turn_move_type: TurnMoveType::Promotion {
+                to: piece,
+                on: promotion.0,
+            },
+        };
+
+        self.moves.push(turn_move);
 
         Ok(())
     }
@@ -172,8 +237,34 @@ impl Room {
         Ok(enemy_id)
     }
 
+    pub fn get_color(&self, client_id: ClientId) -> Result<Color, RoomError> {
+        if self.white == Some(client_id) {
+            Ok(Color::White)
+        } else if self.black == Some(client_id) {
+            Ok(Color::Black)
+        } else {
+            Err(RoomError::ClientNotInRoom)
+        }
+    }
+
     pub fn pieces(&self) -> [[Option<ChessPiece>; 8]; 8] {
         *self.board.get_pieces()
+    }
+
+    pub fn moves(&self) -> &Vec<TurnMove> {
+        &self.moves
+    }
+
+    pub fn id(&self) -> RoomId {
+        self.id
+    }
+
+    pub fn check(&self) -> Option<Color> {
+        self.board.get_check()
+    }
+
+    pub fn promotion(&self) -> Option<Color> {
+        self.board.get_promotion_color()
     }
 
     fn can_play(&self, client_id: ClientId) -> Result<(), RoomError> {
@@ -187,16 +278,6 @@ impl Room {
         }
 
         Ok(())
-    }
-
-    fn get_color(&self, client_id: ClientId) -> Result<Color, RoomError> {
-        if self.white == Some(client_id) {
-            Ok(Color::White)
-        } else if self.black == Some(client_id) {
-            Ok(Color::Black)
-        } else {
-            Err(RoomError::ClientNotInRoom)
-        }
     }
 
     fn client(&self, client_id: ClientId) -> Result<&Arc<Client>, RoomError> {

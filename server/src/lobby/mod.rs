@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use actix::{Actor, Handler};
-use engine::piece::Color;
+
 use uuid::Uuid;
 
 pub mod client;
@@ -38,35 +38,20 @@ impl Lobby {
         }
     }
 
-    pub fn send_connection_message(&self, room_id: RoomId, client_id: ClientId, color: Color) {
+    pub fn send_connection_message(&self, room_id: RoomId, client_id: ClientId) {
         let room = match self.rooms.get(&room_id) {
             Some(room) => room,
             None => return,
         };
-        let pieces = room.pieces();
+
         for client in room.clients() {
-            let enemy_id = room.enemy_id(client_id).unwrap(); //TODO: handle error
-            if client.id() == client_id {
-                let message = ResultMessage::connect(
-                    room_id,
-                    client_id,
-                    enemy_id,
-                    ConnectionType::SelfClient,
-                    pieces,
-                    color,
-                );
-                client.result_addr().do_send(message);
+            let con_type = if client.id() == client_id {
+                ConnectionType::SelfClient
             } else {
-                let message = ResultMessage::connect(
-                    room_id,
-                    client.id(),
-                    enemy_id,
-                    ConnectionType::EnemyClient,
-                    pieces,
-                    color,
-                );
-                client.result_addr().do_send(message);
-            }
+                ConnectionType::EnemyClient
+            };
+            let connection_message = ResultMessage::connect(client.id(), con_type, &room);
+            client.result_addr().do_send(connection_message);
         }
     }
 
@@ -107,8 +92,8 @@ impl Handler<ConnectMessage> for Lobby {
             }
         };
 
-        let player_color = match room.add_client(client.clone()) {
-            Ok(color) => color,
+        match room.add_client(client.clone()) {
+            Ok(_) => {}
             Err(e) => {
                 let err = ResultMessage::error(room_id, client_id, e.to_string());
                 self.send_client_result(client_id, err);
@@ -116,7 +101,7 @@ impl Handler<ConnectMessage> for Lobby {
             }
         };
 
-        self.send_connection_message(room_id, client_id, player_color);
+        self.send_connection_message(room_id, client_id);
 
         self.sessions.insert(client.id(), client);
     }

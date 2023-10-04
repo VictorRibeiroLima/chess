@@ -5,7 +5,10 @@ use engine::{
 };
 use serde::Serialize;
 
-use crate::lobby::{ClientId, RoomId};
+use crate::lobby::{
+    room::{Room, TurnMove},
+    ClientId, RoomId,
+};
 
 #[derive(Message, Serialize, Clone)]
 #[rtype(result = "()")]
@@ -69,14 +72,18 @@ impl ResultMessage {
         })
     }
 
-    pub fn connect(
-        room_id: RoomId,
-        client_id: ClientId,
-        enemy_id: Option<ClientId>,
-        con_type: ConnectionType,
-        pieces: [[Option<ChessPiece>; 8]; 8],
-        color: Color,
-    ) -> Self {
+    pub fn connect(client_id: ClientId, con_type: ConnectionType, room: &Room) -> Self {
+        let room_id = room.id();
+        let (pieces, moves) = match con_type {
+            ConnectionType::EnemyClient => (None, None),
+            ConnectionType::SelfClient => (Some(room.pieces()), Some(room.moves().clone())),
+        };
+        let check = room.check();
+        let promotion = room.promotion();
+
+        let enemy_id = room.enemy_id(client_id).unwrap(); //TODO: Handle this better
+        let color = room.get_color(client_id).unwrap(); //TODO: Handle this better
+
         Self::Success(SuccessMessage {
             room_id,
             client_id,
@@ -87,6 +94,9 @@ impl ResultMessage {
                 con_type,
                 color,
                 pieces,
+                moves,
+                check,
+                promotion,
             }),
         })
     }
@@ -116,7 +126,7 @@ pub struct ErrorMessage {
     error: String,
 }
 
-#[derive(Serialize, Clone, Copy)]
+#[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SuccessMessage {
     room_id: RoomId,
@@ -124,7 +134,7 @@ pub struct SuccessMessage {
     result: SuccessResult,
 }
 
-#[derive(Serialize, Clone, Copy)]
+#[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 enum SuccessResult {
     Movement(MovementResult),
@@ -159,7 +169,7 @@ struct DisconnectSuccess {
     client_id: ClientId,
 }
 
-#[derive(Serialize, Clone, Copy)]
+#[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct ConnectSuccess {
     room_id: RoomId,
@@ -167,7 +177,10 @@ struct ConnectSuccess {
     enemy_id: Option<ClientId>,
     con_type: ConnectionType,
     color: Color,
-    pieces: [[Option<ChessPiece>; 8]; 8],
+    check: Option<Color>,
+    promotion: Option<Color>,
+    pieces: Option<[[Option<ChessPiece>; 8]; 8]>,
+    moves: Option<Vec<TurnMove>>, //Option so that we don't pass the moves to the client when enemy connects
 }
 
 #[derive(Serialize, Clone, Copy)]
