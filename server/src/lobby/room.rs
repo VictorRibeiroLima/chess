@@ -109,8 +109,14 @@ impl Room {
             Ok(movement) => {
                 let promotion = self.board.get_promotion_color();
                 let check = self.board.get_check();
-                let result =
-                    ResultMessage::movement(self.id, client_id, movement, promotion, check);
+                let result = ResultMessage::movement(
+                    self.id,
+                    client_id,
+                    movement,
+                    promotion,
+                    check,
+                    self.turn_number,
+                );
 
                 self.send_room_result(result);
                 movement
@@ -134,8 +140,6 @@ impl Room {
         if turn == Color::Black {
             self.turn_number += 1;
         }
-
-        println!("{}", self.board);
 
         if let Some(winner) = self.board.get_winner() {
             let result = ResultMessage::winner(self.id, client_id, winner);

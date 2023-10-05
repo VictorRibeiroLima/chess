@@ -1271,8 +1271,6 @@ fn test_castling_capturing_bishop() {
 
     assert!(board.move_piece(from, to).is_ok());
 
-    println!("{}", board);
-
     let from = Position::from_str("e1").unwrap();
     let to = Position::from_str("c1").unwrap();
 

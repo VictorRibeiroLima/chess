@@ -33,11 +33,13 @@ impl ResultMessage {
         movement: OkMovement,
         promotion: Option<Color>,
         check: Option<Color>,
+        turn_number: u32,
     ) -> Self {
         let result = MovementResult {
             movement_type: movement,
             promotion,
             check,
+            turn_number,
         };
         Self::Success(SuccessMessage {
             room_id,
@@ -152,6 +154,7 @@ struct MovementResult {
     movement_type: OkMovement,
     promotion: Option<Color>,
     check: Option<Color>,
+    turn_number: u32,
 }
 
 #[derive(Serialize, Clone, Copy)]
