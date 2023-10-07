@@ -412,7 +412,8 @@ impl Room {
 
     fn start_timer(&self, ctx: &mut <Self as Actor>::Context) {
         ctx.run_interval(std::time::Duration::from_secs(1), |act, _| {
-            if act.black_timer_ticking {
+            //>0 to avoid underflow
+            if act.black_timer_ticking && act.black_time > 0 {
                 act.black_time -= 1;
                 let black = &act.black;
                 let white = &act.white;
@@ -432,7 +433,8 @@ impl Room {
                 }
             }
 
-            if act.white_timer_ticking {
+            //>0 to avoid underflow
+            if act.white_timer_ticking && act.white_time > 0 {
                 act.white_time -= 1;
                 let black = &act.black;
                 let white = &act.white;
