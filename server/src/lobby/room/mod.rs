@@ -274,6 +274,7 @@ impl Room {
         Ok(())
     }
 
+    //REFACTOR
     pub fn resign(&mut self, client_id: ClientId) -> Result<(), RoomError> {
         self.can_play(client_id)?;
 
@@ -282,11 +283,13 @@ impl Room {
         if let Some(winner) = self.board.get_winner() {
             let result = ResultMessage::winner(self.id, client_id, winner);
             self.send_room_result(result);
+            self.stop_game();
         }
 
         Ok(())
     }
 
+    //REFACTOR
     pub fn reset(&mut self, client_id: ClientId) -> Result<(), RoomError> {
         self.can_play(client_id)?;
 
@@ -459,5 +462,10 @@ impl Room {
     fn change_turn(&mut self) {
         self.black_timer_ticking = !self.black_timer_ticking;
         self.white_timer_ticking = !self.white_timer_ticking;
+    }
+
+    fn stop_game(&mut self) {
+        self.black_timer_ticking = false;
+        self.white_timer_ticking = false;
     }
 }

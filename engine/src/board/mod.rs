@@ -18,8 +18,6 @@ pub struct Board {
     promotion: Option<Position>,
     white_king_position: Position,
     black_king_position: Position,
-    white_attacked_positions: [[bool; 8]; 8],
-    black_attacked_positions: [[bool; 8]; 8],
 }
 
 impl fmt::Display for Board {
@@ -66,8 +64,6 @@ impl Board {
             promotion: None,
             white_king_position: Position { x: 4, y: 0 },
             black_king_position: Position { x: 4, y: 7 },
-            white_attacked_positions: [[false; 8]; 8],
-            black_attacked_positions: [[false; 8]; 8],
         }
     }
 
@@ -108,8 +104,6 @@ impl Board {
             promotion: None,
             white_king_position,
             black_king_position,
-            white_attacked_positions: [[false; 8]; 8],
-            black_attacked_positions: [[false; 8]; 8],
         }
     }
 
@@ -122,8 +116,6 @@ impl Board {
         self.promotion = None;
         self.white_king_position = Position { x: 4, y: 0 };
         self.black_king_position = Position { x: 4, y: 7 };
-        self.white_attacked_positions = [[false; 8]; 8];
-        self.black_attacked_positions = [[false; 8]; 8];
     }
 
     pub fn get_winner(&self) -> Option<Color> {
