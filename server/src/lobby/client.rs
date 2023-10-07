@@ -11,7 +11,7 @@ pub struct Client {
 
 impl Client {
     pub fn new(id: Uuid, addr: Addr<Con>) -> Self {
-        let result_addr = addr.recipient::<ResultMessage>();
+        let result_addr = addr.clone().recipient::<ResultMessage>();
         Self { id, result_addr }
     }
 

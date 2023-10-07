@@ -1,19 +1,12 @@
 use actix::prelude::Message;
 
+pub mod inner;
 pub mod result;
 
 use crate::{
     commands::Command,
     lobby::{client::Client, ClientId, RoomId},
 };
-
-#[derive(Message)]
-#[rtype(result = "Vec<RoomId>")]
-pub struct AvailableRooms;
-
-#[derive(Message)]
-#[rtype(result = "bool")]
-pub struct AvailableRoom(pub RoomId);
 
 #[derive(Message)]
 #[rtype(result = "()")]

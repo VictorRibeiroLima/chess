@@ -16,6 +16,7 @@ use crate::lobby::{
 pub enum ResultMessage {
     Error(ErrorMessage),
     Success(SuccessMessage),
+    Timer(TimerMessage),
 }
 
 impl ResultMessage {
@@ -83,7 +84,8 @@ impl ResultMessage {
         let check = room.check();
         let promotion = room.promotion();
 
-        let enemy_id = room.enemy_id(client_id).unwrap(); //TODO: Handle this better
+        let enemy = room.enemy(client_id).unwrap(); //TODO: Handle this better
+        let enemy_id = enemy.map(|c| c.id());
         let color = room.get_color(client_id).unwrap(); //TODO: Handle this better
 
         Self::Success(SuccessMessage {
@@ -116,6 +118,14 @@ impl ResultMessage {
             room_id,
             client_id,
             result: SuccessResult::Reset(true),
+        })
+    }
+
+    pub fn timer(room_id: RoomId, client_id: Option<ClientId>, time: u32) -> Self {
+        Self::Timer(TimerMessage {
+            client_id,
+            room_id,
+            time,
         })
     }
 }
@@ -191,4 +201,12 @@ struct ConnectSuccess {
 pub enum ConnectionType {
     EnemyClient,
     SelfClient,
+}
+
+#[derive(Serialize, Clone, Copy)]
+#[serde(rename_all = "camelCase")]
+pub struct TimerMessage {
+    client_id: Option<ClientId>, //Client id is optional because client can be disconnected
+    room_id: RoomId,
+    time: u32,
 }

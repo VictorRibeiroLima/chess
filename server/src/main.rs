@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 
 use actix::{Actor, Addr};
 use actix_cors::Cors;
@@ -10,6 +10,7 @@ use actix_web::{
 };
 use con::Con;
 use lobby::Lobby;
+use messages::inner::{AvailableRoom, AvailableRooms};
 use uuid::Uuid;
 
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
@@ -26,8 +27,8 @@ async fn hello() -> impl Responder {
 }
 
 #[get("api/room")]
-async fn available_rooms(addr: Data<Arc<Addr<Lobby>>>) -> impl Responder {
-    let rooms = addr.get_ref().send(messages::AvailableRooms).await;
+async fn available_rooms(addr: Data<Addr<Lobby>>) -> impl Responder {
+    let rooms = addr.get_ref().send(AvailableRooms).await;
     match rooms {
         Ok(rooms) => HttpResponse::Ok().json(rooms),
         Err(_) => HttpResponse::InternalServerError().finish(),
@@ -38,10 +39,10 @@ async fn available_rooms(addr: Data<Arc<Addr<Lobby>>>) -> impl Responder {
 async fn create_room(
     req: HttpRequest,
     stream: Payload,
-    addr: Data<Arc<Addr<Lobby>>>,
+    addr: Data<Addr<Lobby>>,
 ) -> Result<HttpResponse, Error> {
     let group_id = Uuid::new_v4();
-    let addr = addr.get_ref().as_ref().clone();
+    let addr = addr.get_ref().clone();
     let ws = Con::new(group_id, addr);
 
     let resp = actix_web_actors::ws::start(ws, &req, stream)?;
@@ -53,12 +54,12 @@ async fn join_room(
     room_id: Path<Uuid>,
     req: HttpRequest,
     stream: Payload,
-    addr: Data<Arc<Addr<Lobby>>>,
+    addr: Data<Addr<Lobby>>,
 ) -> Result<HttpResponse, Error> {
     let room_id = room_id.into_inner();
-    let addr = addr.get_ref().as_ref().clone();
+    let addr = addr.get_ref().clone();
 
-    let room = match addr.send(messages::AvailableRoom(room_id)).await {
+    let room = match addr.send(AvailableRoom(room_id)).await {
         Ok(room) => room,
         Err(_) => return Ok(HttpResponse::InternalServerError().finish()),
     };
@@ -79,7 +80,6 @@ async fn main() -> std::io::Result<()> {
     env_logger::init();
     let lobby = Lobby::default();
     let addr = lobby.start();
-    let addr = Arc::new(addr);
 
     println!("Server running at http://localhost:8080");
     HttpServer::new(move || {

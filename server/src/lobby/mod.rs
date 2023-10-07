@@ -1,6 +1,6 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::{HashMap, HashSet};
 
-use actix::{Actor, Handler};
+use actix::{Actor, Addr, AsyncContext, Handler};
 
 use uuid::Uuid;
 
@@ -11,64 +11,29 @@ pub mod room;
 pub type ClientId = Uuid;
 pub type RoomId = Uuid;
 
-use crate::{
-    commands::Command,
-    messages::{
-        result::{ConnectionType, ResultMessage},
-        AvailableRoom, AvailableRooms, CommandMessage, ConnectMessage, DisconnectMessage,
-    },
+use crate::messages::{
+    inner::{AvailableRoom, AvailableRooms},
+    CommandMessage, ConnectMessage, DisconnectMessage,
 };
 
-use self::{client::Client, room::Room};
+use self::room::{
+    message::{RoomMessage, RoomMessageType},
+    Room,
+};
 
 #[derive(Default, Clone)]
 pub struct Lobby {
-    sessions: HashMap<ClientId, Arc<Client>>,
-    rooms: HashMap<RoomId, Room>,
+    available_rooms: HashSet<RoomId>,
+    rooms: HashMap<RoomId, Addr<Room>>,
 }
 
 impl Lobby {
-    pub fn send_room_result(&self, room_id: RoomId, result: ResultMessage) {
-        let room = match self.rooms.get(&room_id) {
-            Some(room) => room,
-            None => return,
-        };
-        for client in room.clients() {
-            client.result_addr().do_send(result.clone());
-        }
-    }
-
-    pub fn send_connection_message(&self, room_id: RoomId, client_id: ClientId) {
-        let room = match self.rooms.get(&room_id) {
-            Some(room) => room,
-            None => return,
-        };
-
-        for client in room.clients() {
-            let con_type = if client.id() == client_id {
-                ConnectionType::SelfClient
-            } else {
-                ConnectionType::EnemyClient
-            };
-            let connection_message = ResultMessage::connect(client.id(), con_type, &room);
-            client.result_addr().do_send(connection_message);
-        }
-    }
-
-    pub fn send_client_result(&self, client_id: ClientId, result: ResultMessage) {
-        let client = match self.sessions.get(&client_id) {
-            Some(client) => client,
-            None => return,
-        };
-        client.result_addr().do_send(result);
+    pub fn available_room(&self, room_id: RoomId) -> bool {
+        self.available_rooms.contains(&room_id)
     }
 
     pub fn available_rooms(&self) -> Vec<RoomId> {
-        self.rooms
-            .iter()
-            .filter(|(_, room)| room.clients().len() < 2)
-            .map(|(id, _)| *id)
-            .collect()
+        self.available_rooms.iter().cloned().collect()
     }
 }
 
@@ -79,31 +44,49 @@ impl Actor for Lobby {
 impl Handler<ConnectMessage> for Lobby {
     type Result = ();
 
-    fn handle(&mut self, msg: ConnectMessage, _: &mut Self::Context) -> Self::Result {
-        let client = Arc::new(msg.client);
-        let client_id = client.id();
+    fn handle(&mut self, msg: ConnectMessage, ctx: &mut Self::Context) -> Self::Result {
+        let client = msg.client;
         let room_id = msg.room_id;
         let room = match self.rooms.get_mut(&room_id) {
             Some(room) => room,
             None => {
-                let room = Room::new(room_id);
+                let addr = ctx.address();
+                let room = Room::new(room_id, addr.recipient());
+                self.available_rooms.insert(room_id);
+                let room = room.start();
                 self.rooms.insert(room_id, room);
                 self.rooms.get_mut(&room_id).unwrap()
             }
         };
 
-        match room.add_client(client.clone()) {
-            Ok(_) => {}
-            Err(e) => {
-                let err = ResultMessage::error(room_id, client_id, e.to_string());
-                self.send_client_result(client_id, err);
-                return;
+        let room_msg = room::message::Connect(client);
+
+        room.do_send(room_msg);
+    }
+}
+
+impl Handler<RoomMessage> for Lobby {
+    type Result = ();
+
+    fn handle(&mut self, msg: RoomMessage, _: &mut Self::Context) -> Self::Result {
+        let room_id = msg.room_id;
+
+        let room_msg = msg.message;
+
+        match room_msg {
+            RoomMessageType::Full => {
+                self.available_rooms.remove(&room_id);
             }
-        };
-
-        self.send_connection_message(room_id, client_id);
-
-        self.sessions.insert(client.id(), client);
+            RoomMessageType::Empty => {
+                println!("Room {} is empty removing!", room_id);
+                self.rooms.remove(&room_id);
+                self.available_rooms.remove(&room_id);
+                println!("Rooms: {}", self.rooms.len())
+            }
+            RoomMessageType::Disconnect => {
+                self.available_rooms.insert(room_id);
+            }
+        }
     }
 }
 
@@ -116,37 +99,13 @@ impl Handler<DisconnectMessage> for Lobby {
         let room = match self.rooms.get_mut(&room_id) {
             Some(room) => room,
             None => {
-                let error_message = format!("Room {} does not exist", room_id);
-                let err = ResultMessage::error(room_id, client_id, error_message);
-                self.send_client_result(client_id, err);
-                return;
-            }
-        };
-        let client = match self.sessions.get(&client_id) {
-            Some(client) => client,
-            None => {
                 return;
             }
         };
 
-        match room.remove_client(client) {
-            Ok(_) => (),
-            Err(e) => {
-                let err = ResultMessage::error(room_id, client_id, e.to_string());
-                self.send_client_result(client_id, err);
-                return;
-            }
-        }
-        self.sessions.remove(&client_id);
+        let room_msg = room::message::Disconnect(client_id);
 
-        if room.clients().is_empty() {
-            println!("Room {} is empty, removing", room_id);
-            self.rooms.remove(&room_id);
-        } else {
-            let leave_message = ResultMessage::disconnect(room_id, client_id);
-
-            self.send_room_result(room_id, leave_message);
-        }
+        room.do_send(room_msg)
     }
 }
 
@@ -160,40 +119,13 @@ impl Handler<CommandMessage> for Lobby {
         let room = match self.rooms.get_mut(&room_id) {
             Some(room) => room,
             None => {
-                let error_message = format!("Room {} does not exist", room_id);
-                let err = ResultMessage::error(room_id, client_id, error_message);
-                self.send_client_result(client_id, err);
                 return;
             }
         };
 
-        let result = match command {
-            Command::Move { from, to } => room.make_move(client_id, from, to),
-            Command::Promote { piece } => room.promote(client_id, piece),
-            Command::Resign(resigned) => {
-                if resigned {
-                    room.resign(client_id)
-                } else {
-                    Ok(())
-                }
-            }
-            Command::Reset(reset) => {
-                if reset {
-                    room.reset(client_id)
-                } else {
-                    Ok(())
-                }
-            }
-        };
+        let room_msg = room::message::Command { client_id, command };
 
-        match result {
-            Ok(_) => (),
-            Err(e) => {
-                let err = ResultMessage::error(room_id, client_id, e.to_string());
-                self.send_client_result(client_id, err);
-                return;
-            }
-        }
+        room.do_send(room_msg)
     }
 }
 
@@ -209,11 +141,6 @@ impl Handler<AvailableRoom> for Lobby {
     type Result = bool;
 
     fn handle(&mut self, msg: AvailableRoom, _: &mut Self::Context) -> Self::Result {
-        let room_id = msg.0;
-        let room = match self.rooms.get(&room_id) {
-            Some(room) => room,
-            None => return false,
-        };
-        room.clients().len() < 2
+        return self.available_room(msg.0);
     }
 }
