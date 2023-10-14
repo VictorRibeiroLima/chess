@@ -1,4 +1,4 @@
-use actix::{Actor, Handler};
+use actix::{Actor, ActorContext, Handler};
 
 use crate::{commands::Command, messages::result::ResultMessage};
 
@@ -12,6 +12,10 @@ impl Actor for Room {
 
     fn started(&mut self, ctx: &mut Self::Context) {
         self.start_timer(ctx);
+    }
+
+    fn stopped(&mut self, _: &mut Self::Context) {
+        println!("Room {} stopped", self.id);
     }
 }
 
@@ -43,7 +47,7 @@ impl Handler<Connect> for Room {
 impl Handler<Disconnect> for Room {
     type Result = ();
 
-    fn handle(&mut self, msg: Disconnect, _: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: Disconnect, ctx: &mut Self::Context) -> Self::Result {
         let client_id = msg.0;
         let result = self.remove_client(client_id);
         match result {
@@ -54,6 +58,7 @@ impl Handler<Disconnect> for Room {
                         message: message::RoomMessageType::Empty,
                     };
                     self.lobby.do_send(msg);
+                    ctx.stop();
                 } else {
                     let msg = RoomMessage {
                         room_id: self.id,
