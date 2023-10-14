@@ -84,9 +84,10 @@ impl ResultMessage {
         let check = room.check();
         let promotion = room.promotion();
 
-        let enemy = room.enemy(client_id).unwrap(); //TODO: Handle this better
+        let enemy = room.enemy(client_id);
         let enemy_id = enemy.map(|c| c.id());
-        let color = room.get_color(client_id).unwrap(); //TODO: Handle this better
+        let color = room.client_color(client_id).unwrap(); // Should not error,client just connected
+        let (white_timer, black_timer) = room.timers();
 
         Self::Success(SuccessMessage {
             room_id,
@@ -101,6 +102,8 @@ impl ResultMessage {
                 moves,
                 check,
                 promotion,
+                white_timer,
+                black_timer,
             }),
         })
     }
@@ -121,11 +124,12 @@ impl ResultMessage {
         })
     }
 
-    pub fn timer(room_id: RoomId, client_id: Option<ClientId>, time: u32) -> Self {
+    pub fn timer(room_id: RoomId, client_id: Option<ClientId>, time: u32, color: Color) -> Self {
         Self::Timer(TimerMessage {
             client_id,
             room_id,
             time,
+            color,
         })
     }
 }
@@ -194,6 +198,8 @@ struct ConnectSuccess {
     promotion: Option<Color>,
     pieces: Option<[[Option<ChessPiece>; 8]; 8]>,
     moves: Option<Vec<TurnMove>>, //Option so that we don't pass the moves to the client when enemy connects
+    white_timer: u32,
+    black_timer: u32,
 }
 
 #[derive(Serialize, Clone, Copy)]
@@ -209,4 +215,5 @@ pub struct TimerMessage {
     client_id: Option<ClientId>, //Client id is optional because client can be disconnected
     room_id: RoomId,
     time: u32,
+    color: Color,
 }

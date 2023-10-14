@@ -16,8 +16,8 @@ use serde::Serialize;
 mod actor;
 pub mod message;
 
-//10 minutes
-const MAX_TIME: u32 = 600;
+//10 minutes in milliseconds
+const MAX_TIME: u32 = 600_000;
 
 #[derive(Clone, Copy, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -77,38 +77,36 @@ impl Room {
             return Err(RoomError::RoomFull);
         }
 
-        if self.client(client_id).is_ok() {
+        if self.client(client_id).is_some() {
             return Err(RoomError::ClientAlreadyInRoom);
         }
 
-        match &self.white {
-            Some(white_client) => {
-                let con_msg =
-                    ResultMessage::connect(white_client.id(), ConnectionType::EnemyClient, &self);
-                white_client.result_addr().do_send(con_msg);
-            }
+        let (white_client, white_msg_type) = match &self.white {
+            Some(white_client) => (white_client, ConnectionType::EnemyClient),
             None => {
                 self.white = Some(client.clone());
-                let con_msg = ResultMessage::connect(client_id, ConnectionType::SelfClient, &self);
-                client.result_addr().do_send(con_msg);
                 inserted = true;
+                (&client, ConnectionType::SelfClient)
             }
         };
 
-        match (&self.black, inserted) {
-            (Some(black_client), true) => {
-                let con_msg =
-                    ResultMessage::connect(black_client.id(), ConnectionType::EnemyClient, &self);
-
-                black_client.result_addr().do_send(con_msg);
-            }
+        let black_message_opt = match (&self.black, inserted) {
+            (Some(black_client), true) => Some((black_client, ConnectionType::EnemyClient)),
             (None, false) => {
                 self.black = Some(client.clone());
-                let con_msg = ResultMessage::connect(client_id, ConnectionType::SelfClient, &self);
-                client.result_addr().do_send(con_msg);
+
+                Some((&client, ConnectionType::SelfClient))
             }
-            _ => {}
+            _ => None,
         };
+
+        let white_msg = ResultMessage::connect(white_client.id(), white_msg_type, &self);
+        white_client.result_addr().do_send(white_msg);
+
+        if let Some((black_client, black_message)) = black_message_opt {
+            let black_msg = ResultMessage::connect(black_client.id(), black_message, &self);
+            black_client.result_addr().do_send(black_msg);
+        }
 
         let full = self.white.is_some() && self.black.is_some();
 
@@ -118,7 +116,7 @@ impl Room {
     /// Returns an error if the client is not in the room
     /// Returns true if the room is empty
     pub fn remove_client(&mut self, client_id: ClientId) -> Result<bool, RoomError> {
-        let enemy = self.enemy(client_id)?;
+        let enemy = self.enemy(client_id);
 
         match enemy {
             Some(enemy) => {
@@ -182,7 +180,7 @@ impl Room {
             }
             Err(e) => {
                 let err = ResultMessage::error(self.id, client_id, e.to_string());
-                let client = self.client(client_id)?;
+                let client = self.client(client_id).ok_or(RoomError::ClientNotInRoom)?; //TODO: Handle this better
                 client.result_addr().do_send(err);
                 return Ok(());
             }
@@ -220,7 +218,9 @@ impl Room {
 
     pub fn promote(&mut self, client_id: ClientId, piece: Type) -> Result<(), RoomError> {
         self.can_play(client_id)?;
-        let color = self.get_color(client_id)?;
+        let color = self
+            .client_color(client_id)
+            .ok_or(RoomError::ClientNotInRoom)?;
         let turn = self.board.get_turn();
         let turn_num = {
             if turn == Color::White {
@@ -251,7 +251,7 @@ impl Room {
             }
             Err(e) => {
                 let err = ResultMessage::error(self.id, client_id, e.to_string());
-                let client = self.client(client_id)?;
+                let client = self.client(client_id).ok_or(RoomError::ClientNotInRoom)?;
                 client.result_addr().do_send(err);
                 return Ok(());
             }
@@ -306,19 +306,26 @@ impl Room {
         Ok(())
     }
 
-    pub fn get_color(&self, client_id: ClientId) -> Result<Color, RoomError> {
-        let color = match &self.white {
+    pub fn client_color(&self, client_id: ClientId) -> Option<Color> {
+        match &self.white {
             Some(white_client) => {
                 if white_client.id() == client_id {
-                    Color::White
-                } else {
-                    Color::Black
+                    return Some(Color::White);
                 }
             }
-            None => Color::White,
+            None => {}
         };
 
-        Ok(color)
+        match &self.black {
+            Some(black_client) => {
+                if black_client.id() == client_id {
+                    return Some(Color::Black);
+                }
+            }
+            None => {}
+        };
+
+        None
     }
 
     pub fn pieces(&self) -> [[Option<ChessPiece>; 8]; 8] {
@@ -341,11 +348,15 @@ impl Room {
         self.board.get_promotion_color()
     }
 
-    pub fn client(&self, client_id: ClientId) -> Result<&Client, RoomError> {
+    pub fn timers(&self) -> (u32, u32) {
+        (self.white_time, self.black_time)
+    }
+
+    pub fn client(&self, client_id: ClientId) -> Option<&Client> {
         match &self.white {
             Some(white_client) => {
                 if white_client.id() == client_id {
-                    return Ok(white_client);
+                    return Some(white_client);
                 }
             }
             None => {}
@@ -354,18 +365,18 @@ impl Room {
         match &self.black {
             Some(black_client) => {
                 if black_client.id() == client_id {
-                    return Ok(black_client);
+                    return Some(black_client);
                 } else {
-                    return Err(RoomError::ClientNotInRoom);
+                    return None;
                 }
             }
             None => {
-                return Err(RoomError::ClientNotInRoom);
+                return None;
             }
         }
     }
 
-    pub fn enemy(&self, client_id: ClientId) -> Result<Option<&Client>, RoomError> {
+    pub fn enemy(&self, client_id: ClientId) -> Option<&Client> {
         self.client(client_id)?;
         let enemy = match &self.white {
             Some(white_client) => {
@@ -378,11 +389,13 @@ impl Room {
             None => None,
         };
 
-        Ok(enemy)
+        enemy
     }
 
     fn can_play(&self, client_id: ClientId) -> Result<(), RoomError> {
-        let color = self.get_color(client_id)?;
+        let color = self
+            .client_color(client_id)
+            .ok_or(RoomError::ClientNotInRoom)?;
         let turn = self.board.get_turn();
         if self.white.is_none() || self.black.is_none() {
             return Err(RoomError::NotEnoughPlayers);
@@ -411,14 +424,18 @@ impl Room {
     }
 
     fn start_timer(&self, ctx: &mut <Self as Actor>::Context) {
-        ctx.run_interval(std::time::Duration::from_secs(1), |act, _| {
+        ctx.run_interval(std::time::Duration::from_millis(1), |act, _| {
+            if act.white.is_none() || act.black.is_none() {
+                return;
+            }
+
             //>0 to avoid underflow
             if act.black_timer_ticking && act.black_time > 0 {
                 act.black_time -= 1;
                 let black = &act.black;
                 let white = &act.white;
                 let black_id = black.as_ref().map(|c| c.id());
-                let timer = ResultMessage::timer(act.id, black_id, act.black_time);
+                let timer = ResultMessage::timer(act.id, black_id, act.black_time, Color::Black);
                 match white {
                     Some(white) => {
                         white.result_addr().do_send(timer.clone());
@@ -439,7 +456,7 @@ impl Room {
                 let black = &act.black;
                 let white = &act.white;
                 let white_id = white.as_ref().map(|c| c.id());
-                let timer = ResultMessage::timer(act.id, white_id, act.white_time);
+                let timer = ResultMessage::timer(act.id, white_id, act.white_time, Color::White);
                 match white {
                     Some(white) => {
                         white.result_addr().do_send(timer.clone());
@@ -457,6 +474,16 @@ impl Room {
     }
 
     fn start_game(&mut self) {
+        //not enough players
+        if self.black.is_none() || self.white.is_none() {
+            return;
+        }
+
+        //game already started
+        if self.black_timer_ticking || self.white_timer_ticking {
+            return;
+        }
+
         self.black_timer_ticking = false;
         self.white_timer_ticking = true;
     }

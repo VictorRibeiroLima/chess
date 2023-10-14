@@ -16,7 +16,6 @@ impl Actor for Room {
 }
 
 impl Handler<Connect> for Room {
-    //Returns true if room is full
     type Result = ();
 
     fn handle(&mut self, msg: Connect, _: &mut Self::Context) -> Self::Result {
@@ -42,7 +41,6 @@ impl Handler<Connect> for Room {
 }
 
 impl Handler<Disconnect> for Room {
-    //Returns true if room is empty
     type Result = ();
 
     fn handle(&mut self, msg: Disconnect, _: &mut Self::Context) -> Self::Result {
@@ -104,8 +102,8 @@ impl Handler<message::Command> for Room {
         };
         let client = self.client(client_id);
         let client = match client {
-            Ok(client) => client,
-            Err(_) => {
+            Some(client) => client,
+            None => {
                 return;
             }
         };
