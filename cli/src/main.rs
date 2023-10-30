@@ -4,7 +4,7 @@ use std::{
 };
 
 use engine::{
-    board::Board,
+    board::{Board, GameState},
     piece::{position::Position, ChessPiece, Color},
 };
 
@@ -13,33 +13,37 @@ fn main() {
     println!("Please enter a move in the format: 'a2 a3'");
     let mut board = Board::new();
     println!("{}", board);
-    while board.get_winner().is_none() {
-        let turn = board.get_turn();
-        let promotion = board.get_promotion();
-        if promotion.is_some() {
-            match turn {
+    loop {
+        match board.get_state() {
+            GameState::Draw => {
+                println!("Draw!");
+                break;
+            }
+            GameState::Winner(color) => {
+                println!("{} wins!", color);
+                break;
+            }
+            GameState::WaitingPromotion(color, _) => match color {
                 Color::White => promote_piece(&mut board),
                 Color::Black => {
                     let choice = ai::make_promotion(&board);
                     board.promote(choice).unwrap();
                 }
-            }
-        } else {
-            match turn {
-                Color::White => move_piece(&mut board),
-                Color::Black => {
-                    let (from, to) = ai::make_move(&board);
-                    board.move_piece(from, to).unwrap();
-                }
+            },
+            _ => {}
+        };
+        let turn = board.get_turn();
+
+        match turn {
+            Color::White => move_piece(&mut board),
+            Color::Black => {
+                let (from, to) = ai::make_move(&board);
+                board.move_piece(from, to).unwrap();
             }
         }
 
         println!("{}", board);
     }
-
-    let winner = board.get_winner().unwrap();
-
-    println!("{} wins!", winner);
 }
 
 fn promote_piece(board: &mut Board) {

@@ -9,13 +9,20 @@ use crate::{
 mod test;
 
 #[derive(PartialEq, Eq, Clone, Copy)]
+pub enum GameState {
+    WaitingPromotion(Color, Position),
+    InProgress,
+    Winner(Color),
+    Draw,
+}
+
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub struct Board {
     turn: Color,
     pieces: [[Option<ChessPiece>; 8]; 8],
-    winner: Option<Color>,
+    state: GameState,
     check: Option<Color>,
     last_move: Option<Movement>,
-    promotion: Option<Position>,
     white_king_position: Position,
     black_king_position: Position,
 }
@@ -58,10 +65,9 @@ impl Board {
         Board {
             turn: Color::White,
             pieces: Board::initial_pieces_setup(),
-            winner: None,
+            state: GameState::InProgress,
             check: None,
             last_move: None,
-            promotion: None,
             white_king_position: Position { x: 4, y: 0 },
             black_king_position: Position { x: 4, y: 7 },
         }
@@ -98,10 +104,9 @@ impl Board {
         Board {
             turn,
             pieces,
-            winner: None,
+            state: GameState::InProgress,
             check,
             last_move,
-            promotion: None,
             white_king_position,
             black_king_position,
         }
@@ -110,16 +115,15 @@ impl Board {
     pub fn reset(&mut self) {
         self.turn = Color::White;
         self.pieces = Board::initial_pieces_setup();
-        self.winner = None;
+        self.state = GameState::InProgress;
         self.check = None;
         self.last_move = None;
-        self.promotion = None;
         self.white_king_position = Position { x: 4, y: 0 };
         self.black_king_position = Position { x: 4, y: 7 };
     }
 
-    pub fn get_winner(&self) -> Option<Color> {
-        self.winner
+    pub fn get_state(&self) -> GameState {
+        self.state
     }
 
     pub fn get_turn(&self) -> Color {
@@ -134,31 +138,32 @@ impl Board {
         self.last_move
     }
 
-    pub fn get_promotion(&self) -> Option<Position> {
-        self.promotion
-    }
-
     pub fn get_promotion_color(&self) -> Option<Color> {
-        if let Some(promotion) = self.promotion {
-            let piece = self.get_piece_at(&promotion).unwrap();
-            return Some(piece.get_color());
+        match self.state {
+            GameState::WaitingPromotion(color, _) => Some(color),
+            _ => None,
         }
-        None
     }
 
     pub fn get_pieces(&self) -> &[[Option<ChessPiece>; 8]; 8] {
         &self.pieces
     }
 
-    pub fn resign(&mut self) {
-        self.winner = Some(self.next_turn());
+    /// Resign the game, and returns the winner
+    pub fn resign(&mut self) -> Color {
+        let winner = self.next_turn();
+        self.state = GameState::Winner(winner);
+        winner
     }
 
     //TODO: This is a very expensive operation.
     pub fn legal_moves(&self) -> Vec<(Position, Position)> {
         let mut moves = Vec::new();
-        if self.promotion.is_some() || self.winner.is_some() {
-            return moves;
+        match self.state {
+            GameState::WaitingPromotion(_, _) => return moves,
+            GameState::Winner(_) => return moves,
+            GameState::Draw => return moves,
+            GameState::InProgress => {}
         }
         for y in 0..8 {
             for x in 0..8 {
@@ -185,24 +190,32 @@ impl Board {
             return Err(PromotionError::InvalidPromotion(piece_type));
         }
 
-        if let Some(position) = self.promotion {
-            self.pieces[position.y as usize][position.x as usize] = Some(piece);
-            self.promotion = None;
-            self.change_turn();
-            let enemy_color = self.next_turn();
-            if self.is_king_in_check(enemy_color) {
-                self.check = Some(enemy_color);
-                let is_checkmate = self.is_checkmate(enemy_color);
-                if is_checkmate {
-                    self.winner = Some(self.turn);
+        let position = match self.state {
+            GameState::WaitingPromotion(color, position) => {
+                if color != self.turn {
+                    return Err(PromotionError::NoPromotion);
                 }
-            } else {
-                self.check = None;
+                position
             }
-            return Ok((position, piece_type));
-        }
+            GameState::Winner(_) => return Err(PromotionError::NoPromotion),
+            GameState::Draw => return Err(PromotionError::NoPromotion),
+            GameState::InProgress => return Err(PromotionError::NoPromotion),
+        };
 
-        return Err(PromotionError::NoPromotion);
+        self.pieces[position.y as usize][position.x as usize] = Some(piece);
+        self.state = GameState::InProgress;
+        self.change_turn();
+        let enemy_color = self.next_turn();
+        if self.is_king_in_check(enemy_color) {
+            self.check = Some(enemy_color);
+            let is_checkmate = self.is_checkmate(enemy_color);
+            if is_checkmate {
+                self.state = GameState::Winner(self.turn);
+            }
+        } else {
+            self.check = None;
+        }
+        return Ok((position, piece_type));
     }
 
     pub fn move_piece(
@@ -210,19 +223,25 @@ impl Board {
         from: Position,
         to: Position,
     ) -> Result<OkMovement, MovementError> {
-        if self.winner.is_some() {
-            self.last_move = Some(Err(MovementError::GameIsOver));
-            return Err(MovementError::GameIsOver);
+        let err = match self.state {
+            GameState::WaitingPromotion(_, _) => Some(MovementError::PromotionNotSpecified),
+            GameState::Winner(_) => Some(MovementError::GameIsOver),
+            GameState::Draw => Some(MovementError::GameIsOver),
+            GameState::InProgress => {
+                if from == to {
+                    Some(MovementError::SamePosition)
+                } else {
+                    None
+                }
+            }
+        };
+
+        if let Some(error) = err {
+            //self.last_move = Some(Err(error));
+            return Err(error);
         }
+
         let piece = self.get_piece_at(&from).cloned();
-        if from == to {
-            self.last_move = Some(Err(MovementError::SamePosition));
-            return Err(MovementError::SamePosition);
-        }
-        let promotion = self.promotion.is_some();
-        if promotion {
-            return Err(MovementError::PromotionNotSpecified);
-        }
         match piece {
             Some(piece) => {
                 if piece.get_color() != self.turn {
@@ -235,18 +254,19 @@ impl Board {
                 if can_move {
                     let movement = movement.unwrap();
                     self.make_movement(movement);
-
-                    if self.get_winner().is_some() {
-                        return Ok(movement);
-                    }
-
                     let enemy_color = self.next_turn();
+
+                    match self.state {
+                        GameState::Winner(_) => return Ok(movement),
+                        GameState::Draw => return Ok(movement),
+                        _ => {}
+                    };
 
                     if self.is_king_in_check(enemy_color) {
                         self.check = Some(enemy_color);
                         let is_checkmate = self.is_checkmate(enemy_color);
                         if is_checkmate {
-                            self.winner = Some(self.turn);
+                            self.state = GameState::Winner(self.turn);
                             return Ok(movement);
                         }
                     } else {
@@ -255,7 +275,8 @@ impl Board {
 
                     let promotion = self.check_promotion(piece, to);
                     if promotion {
-                        self.promotion = Some(to);
+                        self.state = GameState::WaitingPromotion(self.turn, to);
+                        return Ok(movement);
                     } else {
                         self.change_turn();
                     }
@@ -358,8 +379,10 @@ impl Board {
         let mut board = *self;
         let moved_piece = board.make_movement(movement);
 
-        if board.get_winner().is_some() {
-            return false;
+        match board.state {
+            GameState::Winner(_) => return false,
+            GameState::Draw => return false,
+            _ => {}
         }
 
         let is_king_in_check = board.is_king_in_check(moved_piece.get_color());
@@ -444,12 +467,13 @@ impl Board {
                 self.pieces[rock_to.y as usize][rock_to.x as usize] = Some(rock);
                 (king_from, king_to)
             }
-            OkMovement::Capture((from, to)) => {
-                let removed_piece = self.pieces[to.y as usize][to.x as usize];
-                let game_over = Board::game_over(removed_piece);
-
-                if game_over {
-                    self.winner = Some(self.turn);
+            OkMovement::Capture((from, to), captured_piece) => {
+                if captured_piece.get_type() == Type::King {
+                    if captured_piece.get_color() == Color::White {
+                        self.state = GameState::Winner(Color::Black);
+                    } else {
+                        self.state = GameState::Winner(Color::White);
+                    }
                 }
                 (from, to)
             }
@@ -471,17 +495,6 @@ impl Board {
         };
 
         return piece;
-    }
-
-    ///Checks if the removed piece is a king
-    fn game_over(removed_piece: Option<ChessPiece>) -> bool {
-        if let Some(old_piece) = removed_piece {
-            if old_piece.get_type() == Type::King {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     fn check_promotion(&self, piece: ChessPiece, target: Position) -> bool {

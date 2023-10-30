@@ -57,7 +57,7 @@ impl Display for Color {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ChessPiece {
     #[serde(rename = "type")]
@@ -201,10 +201,10 @@ impl ChessPiece {
 
             // Capture diagonally (forward for white, backward for black)
             (1, 1, Some(other_piece)) if color == Color::White && color != other_piece.color => {
-                Ok(OkMovement::Capture((*from, *to)))
+                Ok(OkMovement::Capture((*from, *to), *other_piece))
             }
             (1, -1, Some(other_piece)) if color == Color::Black && color != other_piece.color => {
-                Ok(OkMovement::Capture((*from, *to)))
+                Ok(OkMovement::Capture((*from, *to), *other_piece))
             }
 
             //EnPassant
@@ -292,7 +292,7 @@ impl ChessPiece {
             Some(other_piece) => {
                 let capture = color != other_piece.color;
                 if capture {
-                    Ok(OkMovement::Capture((*from, *to)))
+                    Ok(OkMovement::Capture((*from, *to), *other_piece))
                 } else {
                     Err(MovementError::InvalidMovement)
                 }
@@ -325,7 +325,7 @@ impl ChessPiece {
             Some(other_piece) => {
                 let capture = self.color != other_piece.color;
                 if capture {
-                    Ok(OkMovement::Capture((*from, *to)))
+                    Ok(OkMovement::Capture((*from, *to), *other_piece))
                 } else {
                     Err(MovementError::InvalidMovement)
                 }
@@ -357,7 +357,7 @@ impl ChessPiece {
             Some(other_piece) => {
                 let capture = self.color != other_piece.color;
                 if capture {
-                    Ok(OkMovement::Capture((*from, *to)))
+                    Ok(OkMovement::Capture((*from, *to), *other_piece))
                 } else {
                     Err(MovementError::InvalidMovement)
                 }
@@ -384,7 +384,7 @@ impl ChessPiece {
             Some(other_piece) => {
                 let capture = self.color != other_piece.color;
                 if capture {
-                    Ok(OkMovement::Capture((*from, *to)))
+                    Ok(OkMovement::Capture((*from, *to), *other_piece))
                 } else {
                     Err(MovementError::InvalidMovement)
                 }
@@ -419,7 +419,7 @@ impl ChessPiece {
             Some(other_piece) => {
                 let capture = color != other_piece.color;
                 if capture {
-                    Ok(OkMovement::Capture((*from, *to)))
+                    Ok(OkMovement::Capture((*from, *to), *other_piece))
                 } else {
                     Err(MovementError::InvalidMovement)
                 }

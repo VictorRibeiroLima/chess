@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use crate::{
-    board::Board,
+    board::{Board, GameState},
     piece::{position::Position, ChessPiece, Color, Type},
     result::{MovementError, OkMovement},
 };
@@ -275,10 +275,11 @@ fn test_should_create_checkmate() {
     let to = Position::from_str("e4").unwrap();
 
     assert!(board.move_piece(from, to).is_ok());
-    if let Some(check) = board.get_winner() {
-        assert_eq!(check, Color::White);
-    } else {
-        panic!("Expected checkmate");
+    match board.get_state() {
+        GameState::Winner(color) => {
+            assert_eq!(color, Color::White);
+        }
+        _ => panic!("Expected checkmate"),
     }
 }
 
@@ -587,7 +588,13 @@ fn test_should_checkmate() {
     let last_move = last_move.unwrap().unwrap();
 
     assert_eq!(last_move, OkMovement::Valid((from, to)));
-    assert_eq!(board.get_winner(), Some(Color::Black));
+
+    match board.get_state() {
+        GameState::Winner(color) => {
+            assert_eq!(color, Color::Black);
+        }
+        _ => panic!("Expected checkmate"),
+    }
 }
 
 #[test]
@@ -614,7 +621,12 @@ fn test_fools_mate() {
 
     assert!(board.move_piece(from, to).is_ok());
 
-    assert_eq!(board.get_winner(), Some(Color::Black));
+    match board.get_state() {
+        GameState::Winner(color) => {
+            assert_eq!(color, Color::Black);
+        }
+        _ => panic!("Expected checkmate"),
+    }
 }
 
 #[test]
@@ -765,7 +777,13 @@ fn test_d_byrne_vs_fischer_checkmate() {
     let to = Position::from_str("c2").unwrap();
 
     assert!(board.move_piece(from, to).is_ok());
-    assert_eq!(board.get_winner(), Some(Color::Black));
+
+    match board.get_state() {
+        GameState::Winner(color) => {
+            assert_eq!(color, Color::Black);
+        }
+        _ => panic!("Expected checkmate"),
+    }
 }
 
 #[test]

@@ -1,7 +1,7 @@
 use serde::Serialize;
 use std::{error::Error, fmt::Display};
 
-use crate::piece::{position::Position, Type};
+use crate::piece::{position::Position, ChessPiece, Type};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum PromotionError {
@@ -59,7 +59,7 @@ impl Error for MovementError {}
 #[serde(rename_all = "camelCase")]
 pub enum OkMovement {
     Valid((Position, Position)),
-    Capture((Position, Position)),
+    Capture((Position, Position), ChessPiece),
     EnPassant((Position, Position)),
     Castling((Position, Position), (Position, Position)),
     InitialDoubleAdvance((Position, Position)),

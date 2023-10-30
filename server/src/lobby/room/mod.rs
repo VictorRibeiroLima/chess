@@ -1,6 +1,6 @@
 use actix::{Actor, AsyncContext, Recipient};
 use engine::{
-    board::Board,
+    board::{Board, GameState},
     piece::{position::Position, ChessPiece, Color, Type},
     result::OkMovement,
 };
@@ -208,9 +208,20 @@ impl Room {
             self.turn_number += 1;
         }
 
-        if let Some(winner) = self.board.get_winner() {
-            let result = ResultMessage::winner(self.id, client_id, winner);
-            self.send_room_result(result);
+        match self.board.get_state() {
+            GameState::Draw => {
+                /*
+                let result = ResultMessage::draw(self.id, client_id);
+                self.send_room_result(result);
+                self.stop_game();
+                 */
+            }
+            GameState::Winner(winner) => {
+                let result = ResultMessage::winner(self.id, client_id, winner);
+                self.send_room_result(result);
+                self.stop_game();
+            }
+            _ => {}
         }
 
         Ok(())
@@ -278,13 +289,11 @@ impl Room {
     pub fn resign(&mut self, client_id: ClientId) -> Result<(), RoomError> {
         self.can_play(client_id)?;
 
-        self.board.resign();
+        let winner = self.board.resign();
 
-        if let Some(winner) = self.board.get_winner() {
-            let result = ResultMessage::winner(self.id, client_id, winner);
-            self.send_room_result(result);
-            self.stop_game();
-        }
+        let result = ResultMessage::winner(self.id, client_id, winner);
+        self.send_room_result(result);
+        self.stop_game();
 
         Ok(())
     }
@@ -293,8 +302,10 @@ impl Room {
     pub fn reset(&mut self, client_id: ClientId) -> Result<(), RoomError> {
         self.can_play(client_id)?;
 
-        if self.board.get_winner().is_none() {
-            return Err(RoomError::GameNotOver);
+        match self.board.get_state() {
+            GameState::Draw => {}
+            GameState::Winner(_) => {}
+            _ => return Err(RoomError::GameNotOver),
         };
 
         self.board.reset();
