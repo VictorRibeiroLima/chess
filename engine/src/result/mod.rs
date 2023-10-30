@@ -60,9 +60,14 @@ impl Error for MovementError {}
 pub enum OkMovement {
     Valid((Position, Position)),
     Capture((Position, Position), ChessPiece),
-    EnPassant((Position, Position)),
+    EnPassant((Position, Position), ChessPiece),
     Castling((Position, Position), (Position, Position)),
     InitialDoubleAdvance((Position, Position)),
 }
 
-pub type Movement = Result<OkMovement, MovementError>;
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Movement {
+    Move(OkMovement),
+    Promotion(Position, Type),
+}

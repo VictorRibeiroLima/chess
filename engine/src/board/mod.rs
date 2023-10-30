@@ -5,24 +5,19 @@ use crate::{
     result::{Movement, MovementError, OkMovement, PromotionError},
 };
 
+use self::state::{GameState, Turn};
+
 #[cfg(test)]
 mod test;
 
-#[derive(PartialEq, Eq, Clone, Copy)]
-pub enum GameState {
-    WaitingPromotion(Color, Position),
-    InProgress,
-    Winner(Color),
-    Draw,
-}
-
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[derive(PartialEq, Eq, Clone)]
 pub struct Board {
     turn: Color,
     pieces: [[Option<ChessPiece>; 8]; 8],
     state: GameState,
     check: Option<Color>,
-    last_move: Option<Movement>,
+    turns: Vec<Turn>,
+    turn_number: u32,
     white_king_position: Position,
     black_king_position: Position,
 }
@@ -67,7 +62,8 @@ impl Board {
             pieces: Board::initial_pieces_setup(),
             state: GameState::InProgress,
             check: None,
-            last_move: None,
+            turns: Vec::new(),
+            turn_number: 0,
             white_king_position: Position { x: 4, y: 0 },
             black_king_position: Position { x: 4, y: 7 },
         }
@@ -78,7 +74,7 @@ impl Board {
         pieces: [[Option<ChessPiece>; 8]; 8],
         turn: Color,
         check: Option<Color>,
-        last_move: Option<Movement>,
+        last_move: Option<OkMovement>,
     ) -> Board {
         let mut white_king_position = Position { x: 4, y: 0 };
         let mut black_king_position = Position { x: 4, y: 7 };
@@ -106,7 +102,8 @@ impl Board {
             pieces,
             state: GameState::InProgress,
             check,
-            last_move,
+            turns: Vec::new(),
+            turn_number: 0,
             white_king_position,
             black_king_position,
         }
@@ -117,9 +114,84 @@ impl Board {
         self.pieces = Board::initial_pieces_setup();
         self.state = GameState::InProgress;
         self.check = None;
-        self.last_move = None;
+        self.turns = Vec::new();
+        self.turn_number = 0;
         self.white_king_position = Position { x: 4, y: 0 };
         self.black_king_position = Position { x: 4, y: 7 };
+    }
+
+    pub fn undo(&mut self) {
+        if self.turns.is_empty() {
+            return;
+        }
+        if self.turns.len() == 1 {
+            self.reset();
+            return;
+        }
+        let turn = self.turns.pop().unwrap(); // Safe to unwrap, we checked if it's empty
+        match turn.movement {
+            Movement::Move(movement) => {
+                match movement {
+                    OkMovement::Valid((from, to)) => {
+                        let mut piece = self.pieces[to.y as usize][to.x as usize].unwrap();
+                        piece.moves = piece.moves - 1;
+                        self.pieces[to.y as usize][to.x as usize] = None;
+                        self.pieces[from.y as usize][from.x as usize] = Some(piece);
+                    }
+                    OkMovement::Capture((from, to), captured_piece) => {
+                        let mut piece = self.pieces[to.y as usize][to.x as usize].unwrap();
+                        piece.moves = piece.moves - 1;
+                        self.pieces[to.y as usize][to.x as usize] = Some(captured_piece);
+                        self.pieces[from.y as usize][from.x as usize] = Some(piece);
+                    }
+                    OkMovement::EnPassant((from, to), captured_piece) => {
+                        let mut piece = self.pieces[to.y as usize][to.x as usize].unwrap();
+                        piece.moves = piece.moves - 1;
+                        self.pieces[to.y as usize][to.x as usize] = None;
+                        self.pieces[from.y as usize][from.x as usize] = Some(piece);
+                        let enemy_pawn_position = Position { x: to.x, y: from.y };
+                        self.pieces[enemy_pawn_position.y as usize]
+                            [enemy_pawn_position.x as usize] = Some(captured_piece);
+                    }
+                    OkMovement::Castling(king, rock) => {
+                        let king_from = king.0;
+                        let king_to = king.1;
+                        let rock_from = rock.0;
+                        let rock_to = rock.1;
+
+                        let mut rock = self.pieces[rock_to.y as usize][rock_to.x as usize].unwrap();
+                        rock.moves = 0;
+                        self.pieces[rock_from.y as usize][rock_from.x as usize] = Some(rock);
+                        self.pieces[rock_to.y as usize][rock_to.x as usize] = None;
+
+                        let mut king = self.pieces[king_to.y as usize][king_to.x as usize].unwrap();
+                        king.moves = 0;
+                        self.pieces[king_from.y as usize][king_from.x as usize] = Some(king);
+                        self.pieces[king_to.y as usize][king_to.x as usize] = None;
+                    }
+                    OkMovement::InitialDoubleAdvance((from, to)) => {
+                        let mut piece = self.pieces[to.y as usize][to.x as usize].unwrap();
+                        piece.moves = 0;
+                        self.pieces[to.y as usize][to.x as usize] = None;
+                        self.pieces[from.y as usize][from.x as usize] = Some(piece);
+                    }
+                };
+            }
+            Movement::Promotion(on, _) => {
+                let piece = self.pieces[on.y as usize][on.x as usize].unwrap();
+                let color = piece.get_color();
+                let mut pawn = ChessPiece::create_pawn(color);
+                pawn.moves = piece.moves;
+
+                self.pieces[on.y as usize][on.x as usize] = Some(pawn);
+            }
+        };
+        let turn = self.turns.last().unwrap(); // Safe to unwrap, we checked if the length is > 1
+        self.turn = turn.color;
+        self.state = turn.state;
+        self.check = turn.check;
+        self.white_king_position = turn.white_king_position;
+        self.black_king_position = turn.black_king_position;
     }
 
     pub fn get_state(&self) -> GameState {
@@ -135,7 +207,11 @@ impl Board {
     }
 
     pub fn get_last_move(&self) -> Option<Movement> {
-        self.last_move
+        self.turns.last().map(|turn| turn.movement)
+    }
+
+    pub fn get_turn_number(&self) -> u32 {
+        self.turn_number
     }
 
     pub fn get_promotion_color(&self) -> Option<Color> {
@@ -183,7 +259,7 @@ impl Board {
         moves
     }
 
-    pub fn promote(&mut self, piece: ChessPiece) -> Result<(Position, Type), PromotionError> {
+    pub fn promote(&mut self, mut piece: ChessPiece) -> Result<(Position, Type), PromotionError> {
         let piece_type = piece.get_type();
         // can't promote to a pawn or king
         if piece_type == Type::Pawn || piece_type == Type::King {
@@ -202,6 +278,10 @@ impl Board {
             GameState::InProgress => return Err(PromotionError::NoPromotion),
         };
 
+        let old_piece = self.pieces[position.y as usize][position.x as usize].unwrap();
+
+        piece.moves = old_piece.moves;
+
         self.pieces[position.y as usize][position.x as usize] = Some(piece);
         self.state = GameState::InProgress;
         self.change_turn();
@@ -215,6 +295,8 @@ impl Board {
         } else {
             self.check = None;
         }
+        self.turns
+            .push(Turn::promotion(position, piece_type, &self));
         return Ok((position, piece_type));
     }
 
@@ -245,11 +327,9 @@ impl Board {
         match piece {
             Some(piece) => {
                 if piece.get_color() != self.turn {
-                    self.last_move = Some(Err(MovementError::InvalidPiece));
                     return Err(MovementError::InvalidPiece);
                 }
                 let movement = piece.can_move(from, to, self);
-                self.last_move = Some(movement);
                 let can_move = movement.is_ok();
                 if can_move {
                     let movement = movement.unwrap();
@@ -267,7 +347,6 @@ impl Board {
                         let is_checkmate = self.is_checkmate(enemy_color);
                         if is_checkmate {
                             self.state = GameState::Winner(self.turn);
-                            return Ok(movement);
                         }
                     } else {
                         self.check = None;
@@ -276,11 +355,12 @@ impl Board {
                     let promotion = self.check_promotion(piece, to);
                     if promotion {
                         self.state = GameState::WaitingPromotion(self.turn, to);
-                        return Ok(movement);
                     } else {
                         self.change_turn();
                     }
+                    self.turns.push(Turn::movement(movement, &self));
                 }
+
                 return movement;
             }
             None => Err(MovementError::InvalidPiece),
@@ -376,7 +456,7 @@ impl Board {
     }
 
     pub fn creates_check(&self, movement: OkMovement) -> bool {
-        let mut board = *self;
+        let mut board = self.clone();
         let moved_piece = board.make_movement(movement);
 
         match board.state {
@@ -450,7 +530,7 @@ impl Board {
     ///Make a movement on the board, and returns the moved piece
     fn make_movement(&mut self, movement: OkMovement) -> ChessPiece {
         let (from, to) = match movement {
-            OkMovement::EnPassant((from, to)) => {
+            OkMovement::EnPassant((from, to), _) => {
                 let enemy_pawn_position = Position { x: to.x, y: from.y };
                 self.pieces[enemy_pawn_position.y as usize][enemy_pawn_position.x as usize] = None;
                 (from, to)
@@ -462,7 +542,7 @@ impl Board {
                 let rock_to = rock.1;
 
                 let mut rock = self.pieces[rock_from.y as usize][rock_from.x as usize].unwrap();
-                rock.moved = true;
+                rock.moves = 1;
                 self.pieces[rock_from.y as usize][rock_from.x as usize] = None;
                 self.pieces[rock_to.y as usize][rock_to.x as usize] = Some(rock);
                 (king_from, king_to)
@@ -482,7 +562,7 @@ impl Board {
         };
 
         let mut piece = self.pieces[from.y as usize][from.x as usize].unwrap();
-        piece.moved = true;
+        piece.moves = piece.moves + 1;
         self.pieces[from.y as usize][from.x as usize] = None;
         self.pieces[to.y as usize][to.x as usize] = Some(piece);
 
@@ -578,5 +658,63 @@ impl Board {
         ];
 
         return pieces;
+    }
+}
+
+pub mod state {
+    use crate::{
+        piece::{position::Position, Color, Type},
+        result::{Movement, OkMovement},
+    };
+
+    use super::Board;
+
+    #[derive(PartialEq, Eq, Clone, Copy)]
+    pub enum GameState {
+        WaitingPromotion(Color, Position),
+        InProgress,
+        Winner(Color),
+        Draw,
+    }
+
+    #[derive(PartialEq, Eq, Clone, Copy)]
+    pub struct Turn {
+        pub color: Color,
+        pub number: u32,
+        pub movement: Movement,
+        pub state: GameState,
+        pub check: Option<Color>,
+        pub white_king_position: Position,
+        pub black_king_position: Position,
+    }
+
+    impl Turn {
+        pub fn promotion(position: Position, piece: Type, board: &Board) -> Self {
+            let color = board.turn;
+            let turn = Turn {
+                color,
+                number: board.turn_number,
+                movement: Movement::Promotion(position, piece),
+                state: GameState::InProgress,
+                check: None,
+                white_king_position: board.white_king_position,
+                black_king_position: board.black_king_position,
+            };
+            return turn;
+        }
+
+        pub fn movement(movement: OkMovement, board: &Board) -> Self {
+            let color = board.turn;
+            let turn = Turn {
+                color,
+                number: board.turn_number,
+                movement: Movement::Move(movement),
+                state: GameState::InProgress,
+                check: None,
+                white_king_position: board.white_king_position,
+                black_king_position: board.black_king_position,
+            };
+            return turn;
+        }
     }
 }

@@ -63,7 +63,7 @@ pub struct ChessPiece {
     #[serde(rename = "type")]
     piece_type: Type,
     color: Color,
-    pub moved: bool,
+    pub moves: u32,
 }
 
 impl Display for ChessPiece {
@@ -81,7 +81,7 @@ impl ChessPiece {
         ChessPiece {
             piece_type,
             color,
-            moved: false,
+            moves: 0,
         }
     }
 
@@ -117,7 +117,12 @@ impl ChessPiece {
         self.piece_type
     }
 
-    pub fn can_move(&self, from: Position, to: Position, board: &Board) -> Movement {
+    pub fn can_move(
+        &self,
+        from: Position,
+        to: Position,
+        board: &Board,
+    ) -> Result<OkMovement, MovementError> {
         if from == to {
             return Err(MovementError::SamePosition);
         }
@@ -163,7 +168,12 @@ impl ChessPiece {
         legal_moves
     }
 
-    fn can_move_pawn(&self, from: &Position, to: &Position, board: &Board) -> Movement {
+    fn can_move_pawn(
+        &self,
+        from: &Position,
+        to: &Position,
+        board: &Board,
+    ) -> Result<OkMovement, MovementError> {
         let x_diff = to.x - from.x;
         let y_diff = to.y - from.y;
 
@@ -179,7 +189,7 @@ impl ChessPiece {
             (0, 2, None) => {
                 let is_path_clear = board.is_vertical_path_clean(from, to);
                 let is_color_white = color == Color::White;
-                let is_first_move = !self.moved;
+                let is_first_move = self.moves == 0;
                 let valid = is_path_clear && is_color_white && is_first_move;
                 if valid {
                     Ok(OkMovement::InitialDoubleAdvance((*from, *to)))
@@ -190,7 +200,7 @@ impl ChessPiece {
             (0, -2, None) => {
                 let is_path_clear = board.is_vertical_path_clean(from, to);
                 let is_color_black = color == Color::Black;
-                let is_first_move = !self.moved;
+                let is_first_move = self.moves == 0;
                 let valid = is_path_clear && is_color_black && is_first_move;
                 if valid {
                     Ok(OkMovement::InitialDoubleAdvance((*from, *to)))
@@ -214,12 +224,9 @@ impl ChessPiece {
                     Some(result) => result,
                     None => return Err(MovementError::InvalidMovement),
                 };
+
                 let last_move = match last_move {
-                    Ok(result) => result,
-                    Err(_) => return Err(MovementError::InvalidMovement),
-                };
-                let last_move = match last_move {
-                    OkMovement::InitialDoubleAdvance((from, to)) => (from, to),
+                    Movement::Move(OkMovement::InitialDoubleAdvance((from, to))) => (from, to),
                     _ => return Err(MovementError::InvalidMovement),
                 };
                 let to_last_move = last_move.1;
@@ -233,7 +240,10 @@ impl ChessPiece {
                 let valid = is_color_white && is_last_move_behind;
 
                 if valid {
-                    Ok(OkMovement::EnPassant((*from, *to)))
+                    Ok(OkMovement::EnPassant(
+                        (*from, *to),
+                        ChessPiece::create_pawn(Color::Black),
+                    ))
                 } else {
                     Err(MovementError::InvalidMovement)
                 }
@@ -244,12 +254,9 @@ impl ChessPiece {
                     Some(result) => result,
                     None => return Err(MovementError::InvalidMovement),
                 };
+
                 let last_move = match last_move {
-                    Ok(result) => result,
-                    Err(_) => return Err(MovementError::InvalidMovement),
-                };
-                let last_move = match last_move {
-                    OkMovement::InitialDoubleAdvance((from, to)) => (from, to),
+                    Movement::Move(OkMovement::InitialDoubleAdvance((from, to))) => (from, to),
                     _ => return Err(MovementError::InvalidMovement),
                 };
                 let to_last_move = last_move.1;
@@ -260,7 +267,10 @@ impl ChessPiece {
                 let valid = is_color_black && is_last_move_behind;
 
                 if valid {
-                    Ok(OkMovement::EnPassant((*from, *to)))
+                    Ok(OkMovement::EnPassant(
+                        (*from, *to),
+                        ChessPiece::create_pawn(Color::White),
+                    ))
                 } else {
                     Err(MovementError::InvalidMovement)
                 }
@@ -270,7 +280,12 @@ impl ChessPiece {
         }
     }
 
-    fn can_move_bishop(&self, from: &Position, to: &Position, board: &Board) -> Movement {
+    fn can_move_bishop(
+        &self,
+        from: &Position,
+        to: &Position,
+        board: &Board,
+    ) -> Result<OkMovement, MovementError> {
         let x_diff = (to.x - from.x).abs();
         let y_diff = (to.y - from.y).abs();
 
@@ -300,7 +315,12 @@ impl ChessPiece {
         }
     }
 
-    fn can_move_rock(&self, from: &Position, to: &Position, board: &Board) -> Movement {
+    fn can_move_rock(
+        &self,
+        from: &Position,
+        to: &Position,
+        board: &Board,
+    ) -> Result<OkMovement, MovementError> {
         let x_diff = (to.x - from.x).abs();
         let y_diff = (to.y - from.y).abs();
 
@@ -333,7 +353,12 @@ impl ChessPiece {
         }
     }
 
-    fn can_move_king(&self, from: &Position, to: &Position, board: &Board) -> Movement {
+    fn can_move_king(
+        &self,
+        from: &Position,
+        to: &Position,
+        board: &Board,
+    ) -> Result<OkMovement, MovementError> {
         let x_diff = to.x - from.x;
         let y_diff = to.y - from.y;
 
@@ -365,7 +390,12 @@ impl ChessPiece {
         }
     }
 
-    fn can_move_knight(&self, from: &Position, to: &Position, board: &Board) -> Movement {
+    fn can_move_knight(
+        &self,
+        from: &Position,
+        to: &Position,
+        board: &Board,
+    ) -> Result<OkMovement, MovementError> {
         let x_diff = (to.x - from.x).abs();
         let y_diff = (to.y - from.y).abs();
 
@@ -392,7 +422,12 @@ impl ChessPiece {
         }
     }
 
-    fn can_move_queen(&self, from: &Position, to: &Position, board: &Board) -> Movement {
+    fn can_move_queen(
+        &self,
+        from: &Position,
+        to: &Position,
+        board: &Board,
+    ) -> Result<OkMovement, MovementError> {
         let x_diff = (to.x - from.x).abs();
         let y_diff = (to.y - from.y).abs();
 
@@ -427,7 +462,12 @@ impl ChessPiece {
         }
     }
 
-    fn can_perform_castling(&self, from: &Position, to: &Position, board: &Board) -> Movement {
+    fn can_perform_castling(
+        &self,
+        from: &Position,
+        to: &Position,
+        board: &Board,
+    ) -> Result<OkMovement, MovementError> {
         let x_diff = to.x - from.x;
 
         let rock_from = match x_diff {
@@ -449,10 +489,10 @@ impl ChessPiece {
         };
 
         //2. Neither the king nor the chosen rook has previously moved.
-        if self.moved {
+        if self.moves > 0 {
             return Err(MovementError::InvalidMovement);
         }
-        if rock.moved {
+        if rock.moves > 0 {
             return Err(MovementError::InvalidMovement);
         }
 

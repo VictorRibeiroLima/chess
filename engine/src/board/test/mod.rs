@@ -350,10 +350,11 @@ fn test_invalid_en_passant_movement() {
     let from = Position::from_str("d5").unwrap();
     let to = Position::from_str("b6").unwrap();
 
-    assert!(!board.move_piece(from, to).is_ok());
+    let last_move = board.move_piece(from, to);
 
-    let last_move = board.get_last_move();
-    let last_move = last_move.unwrap().unwrap_err();
+    assert!(!last_move.is_ok());
+
+    let last_move = last_move.unwrap_err();
     assert_eq!(last_move, MovementError::InvalidMovement);
 }
 

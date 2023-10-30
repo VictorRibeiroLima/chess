@@ -1,6 +1,6 @@
 use actix::{Actor, AsyncContext, Recipient};
 use engine::{
-    board::{Board, GameState},
+    board::{state::GameState, Board},
     piece::{position::Position, ChessPiece, Color, Type},
     result::OkMovement,
 };
