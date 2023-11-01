@@ -4,7 +4,7 @@ use std::{
 };
 
 use engine::{
-    board::{Board, GameState},
+    board::{state::GameState, Board},
     piece::{position::Position, ChessPiece, Color},
 };
 

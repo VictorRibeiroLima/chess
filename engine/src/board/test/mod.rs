@@ -3,7 +3,7 @@ use std::str::FromStr;
 use crate::{
     board::{Board, GameState},
     piece::{position::Position, ChessPiece, Color, Type},
-    result::{MovementError, OkMovement},
+    result::{Movement, MovementError, OkMovement},
 };
 
 #[test]
@@ -291,7 +291,11 @@ fn test_should_mark_double_advance() {
 
     assert!(board.move_piece(from, to).is_ok());
     let last_move = board.get_last_move();
-    let last_move = last_move.unwrap().unwrap();
+    let last_move = last_move.unwrap();
+    let last_move = match last_move {
+        Movement::Move(movement) => movement,
+        _ => panic!("Expected movement"),
+    };
     assert_eq!(last_move, OkMovement::InitialDoubleAdvance((from, to)));
 }
 
@@ -322,8 +326,20 @@ fn test_en_passant() {
     assert!(board.move_piece(from, to).is_ok());
 
     let last_move = board.get_last_move();
-    let last_move = last_move.unwrap().unwrap();
-    assert_eq!(last_move, OkMovement::EnPassant((from, to)));
+    let last_move = last_move.unwrap();
+    let last_move = match last_move {
+        Movement::Move(movement) => movement,
+        _ => panic!("Expected movement"),
+    };
+    match last_move {
+        OkMovement::EnPassant((from, to), _) => {
+            assert_eq!(from, Position::from_str("d5").unwrap());
+            assert_eq!(to, Position::from_str("e6").unwrap());
+        }
+        _ => {
+            panic!("Expected en passant");
+        }
+    }
 }
 
 #[test]
@@ -355,6 +371,7 @@ fn test_invalid_en_passant_movement() {
     assert!(!last_move.is_ok());
 
     let last_move = last_move.unwrap_err();
+
     assert_eq!(last_move, MovementError::InvalidMovement);
 }
 
@@ -400,11 +417,10 @@ fn test_missed_en_passant() {
     let from = Position::from_str("d5").unwrap();
     let to = Position::from_str("e6").unwrap();
 
-    assert!(!board.move_piece(from, to).is_ok());
+    let result = board.move_piece(from, to);
+    let err = result.unwrap_err();
 
-    let last_move = board.get_last_move();
-    let last_move = last_move.unwrap().unwrap_err();
-    assert_eq!(last_move, MovementError::InvalidMovement);
+    assert_eq!(err, MovementError::InvalidMovement);
 }
 
 #[test]
@@ -457,12 +473,10 @@ fn test_invalid_en_passant_movement_2() {
     let from = Position::from_str("d5").unwrap();
     let to = Position::from_str("e6").unwrap();
 
-    assert!(!board.move_piece(from, to).is_ok());
+    let result = board.move_piece(from, to);
+    let err = result.unwrap_err();
 
-    let last_move = board.get_last_move();
-    let last_move = last_move.unwrap().unwrap_err();
-
-    assert_eq!(last_move, MovementError::InvalidMovement);
+    assert_eq!(err, MovementError::InvalidMovement);
 }
 
 #[test]
@@ -516,9 +530,21 @@ fn test_en_passant_2() {
     assert!(board.move_piece(from, to).is_ok());
 
     let last_move = board.get_last_move();
-    let last_move = last_move.unwrap().unwrap();
+    let last_move = last_move.unwrap();
+    let last_move = match last_move {
+        Movement::Move(movement) => movement,
+        _ => panic!("Expected movement"),
+    };
 
-    assert_eq!(last_move, OkMovement::EnPassant((from, to)));
+    match last_move {
+        OkMovement::EnPassant((from, to), _) => {
+            assert_eq!(from, Position::from_str("d5").unwrap());
+            assert_eq!(to, Position::from_str("c6").unwrap());
+        }
+        _ => {
+            panic!("Expected en passant");
+        }
+    }
 }
 
 #[test]
@@ -586,7 +612,11 @@ fn test_should_checkmate() {
     assert!(board.move_piece(from, to).is_ok());
 
     let last_move = board.get_last_move();
-    let last_move = last_move.unwrap().unwrap();
+    let last_move = last_move.unwrap();
+    let last_move = match last_move {
+        Movement::Move(movement) => movement,
+        _ => panic!("Expected movement"),
+    };
 
     assert_eq!(last_move, OkMovement::Valid((from, to)));
 
@@ -663,10 +693,9 @@ fn test_invalid_check_move() {
     let from = Position::from_str("g8").unwrap();
     let to = Position::from_str("h8").unwrap();
 
-    assert!(!board.move_piece(from, to).is_ok());
+    let result = board.move_piece(from, to);
 
-    let last_move = board.get_last_move();
-    let last_move = last_move.unwrap().unwrap_err();
+    let last_move = result.unwrap_err();
 
     assert_eq!(last_move, MovementError::CreatesOwnCheck);
 }
@@ -811,7 +840,11 @@ fn test_kingside_castling_white() {
 
     assert!(board.move_piece(from, to).is_ok());
     let last_move = board.get_last_move();
-    let last_move = last_move.unwrap().unwrap();
+    let last_move = last_move.unwrap();
+    let last_move = match last_move {
+        Movement::Move(movement) => movement,
+        _ => panic!("Expected movement"),
+    };
 
     let expect_rock_from = Position::from_str("h1").unwrap();
     let expect_rock_to = Position::from_str("f1").unwrap();
@@ -830,8 +863,8 @@ fn test_kingside_castling_white() {
     assert_eq!(king.get_type(), Type::King);
     assert_eq!(rock.get_type(), Type::Rook);
 
-    assert!(king.moved);
-    assert!(rock.moved);
+    assert!(king.moves == 1);
+    assert!(rock.moves == 1);
 }
 
 #[test]
@@ -858,7 +891,11 @@ fn test_queen_side_castling_white() {
 
     assert!(board.move_piece(from, to).is_ok());
     let last_move = board.get_last_move();
-    let last_move = last_move.unwrap().unwrap();
+    let last_move = last_move.unwrap();
+    let last_move = match last_move {
+        Movement::Move(movement) => movement,
+        _ => panic!("Expected movement"),
+    };
 
     let expect_rock_from = Position::from_str("a1").unwrap();
     let expect_rock_to = Position::from_str("d1").unwrap();
@@ -877,8 +914,8 @@ fn test_queen_side_castling_white() {
     assert_eq!(king.get_type(), Type::King);
     assert_eq!(rock.get_type(), Type::Rook);
 
-    assert!(king.moved);
-    assert!(rock.moved);
+    assert!(king.moves == 1);
+    assert!(rock.moves == 1);
 }
 
 #[test]
@@ -905,7 +942,11 @@ fn test_kingside_castling_black() {
 
     assert!(board.move_piece(from, to).is_ok());
     let last_move = board.get_last_move();
-    let last_move = last_move.unwrap().unwrap();
+    let last_move = last_move.unwrap();
+    let last_move = match last_move {
+        Movement::Move(movement) => movement,
+        _ => panic!("Expected movement"),
+    };
 
     let expect_rock_from = Position::from_str("h8").unwrap();
     let expect_rock_to = Position::from_str("f8").unwrap();
@@ -924,8 +965,8 @@ fn test_kingside_castling_black() {
     assert_eq!(king.get_type(), Type::King);
     assert_eq!(rock.get_type(), Type::Rook);
 
-    assert!(king.moved);
-    assert!(rock.moved);
+    assert!(king.moves == 1);
+    assert!(rock.moves == 1);
 }
 
 #[test]
@@ -952,7 +993,11 @@ fn test_queen_side_castling_black() {
 
     assert!(board.move_piece(from, to).is_ok());
     let last_move = board.get_last_move();
-    let last_move = last_move.unwrap().unwrap();
+    let last_move = last_move.unwrap();
+    let last_move = match last_move {
+        Movement::Move(movement) => movement,
+        _ => panic!("Expected movement"),
+    };
 
     let expect_rock_from = Position::from_str("a8").unwrap();
     let expect_rock_to = Position::from_str("d8").unwrap();
@@ -971,8 +1016,8 @@ fn test_queen_side_castling_black() {
     assert_eq!(king.get_type(), Type::King);
     assert_eq!(rock.get_type(), Type::Rook);
 
-    assert!(king.moved);
-    assert!(rock.moved);
+    assert!(king.moves == 1);
+    assert!(rock.moves == 1);
 }
 
 #[test]
@@ -1016,12 +1061,10 @@ fn test_attacked_king_castling() {
     let from = Position::from_str("e1").unwrap();
     let to = Position::from_str("g1").unwrap();
 
-    assert!(!board.move_piece(from, to).is_ok());
+    let result = board.move_piece(from, to);
+    let err = result.unwrap_err();
 
-    let last_move = board.get_last_move();
-    let last_move = last_move.unwrap().unwrap_err();
-
-    assert_eq!(last_move, MovementError::InvalidMovement);
+    assert_eq!(err, MovementError::InvalidMovement);
 }
 
 #[test]
@@ -1057,12 +1100,10 @@ fn test_attacked_path_queen_side_castling() {
     let from = Position::from_str("e1").unwrap();
     let to = Position::from_str("c1").unwrap();
 
-    assert!(!board.move_piece(from, to).is_ok());
+    let result = board.move_piece(from, to);
+    let err = result.unwrap_err();
 
-    let last_move = board.get_last_move();
-    let last_move = last_move.unwrap().unwrap_err();
-
-    assert_eq!(last_move, MovementError::InvalidMovement);
+    assert_eq!(err, MovementError::InvalidMovement);
 }
 
 #[test]
@@ -1098,12 +1139,10 @@ fn test_attacked_path_queen_side_castling_2() {
     let from = Position::from_str("e1").unwrap();
     let to = Position::from_str("c1").unwrap();
 
-    assert!(!board.move_piece(from, to).is_ok());
+    let result = board.move_piece(from, to);
+    let err = result.unwrap_err();
 
-    let last_move = board.get_last_move();
-    let last_move = last_move.unwrap().unwrap_err();
-
-    assert_eq!(last_move, MovementError::InvalidMovement);
+    assert_eq!(err, MovementError::InvalidMovement);
 }
 
 #[test]
@@ -1196,12 +1235,10 @@ fn test_moved_king_castling() {
     let from = Position::from_str("e1").unwrap();
     let to = Position::from_str("g1").unwrap();
 
-    assert!(!board.move_piece(from, to).is_ok());
+    let result = board.move_piece(from, to);
+    let err = result.unwrap_err();
 
-    let last_move = board.get_last_move();
-    let last_move = last_move.unwrap().unwrap_err();
-
-    assert_eq!(last_move, MovementError::InvalidMovement);
+    assert_eq!(err, MovementError::InvalidMovement);
 }
 
 #[test]
@@ -1259,12 +1296,10 @@ fn test_moved_rock_castling() {
     let from = Position::from_str("e1").unwrap();
     let to = Position::from_str("g1").unwrap();
 
-    assert!(!board.move_piece(from, to).is_ok());
+    let result = board.move_piece(from, to);
+    let err = result.unwrap_err();
 
-    let last_move = board.get_last_move();
-    let last_move = last_move.unwrap().unwrap_err();
-
-    assert_eq!(last_move, MovementError::InvalidMovement);
+    assert_eq!(err, MovementError::InvalidMovement);
 }
 
 #[test]
