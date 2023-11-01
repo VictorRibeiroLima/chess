@@ -188,7 +188,6 @@ impl Board {
                 self.pieces[on.y as usize][on.x as usize] = Some(pawn);
             }
         };
-        let turn = self.turns.last().unwrap(); // Safe to unwrap, we checked if the length is > 1
         self.turn = turn.color;
         self.state = turn.state;
         self.check = turn.check;
@@ -286,6 +285,9 @@ impl Board {
 
         self.pieces[position.y as usize][position.x as usize] = Some(piece);
         self.state = GameState::InProgress;
+        self.turns
+            .push(Turn::promotion(position, piece_type, &self));
+
         self.change_turn();
         let enemy_color = self.next_turn();
         if self.is_king_in_check(enemy_color) {
@@ -297,8 +299,6 @@ impl Board {
         } else {
             self.check = None;
         }
-        self.turns
-            .push(Turn::promotion(position, piece_type, &self));
         return Ok((position, piece_type));
     }
 
@@ -360,7 +360,6 @@ impl Board {
                     } else {
                         self.change_turn();
                     }
-                    self.turns.push(Turn::movement(movement, &self));
                 }
 
                 return movement;
@@ -531,6 +530,7 @@ impl Board {
 
     ///Make a movement on the board, and returns the moved piece
     fn make_movement(&mut self, movement: OkMovement) -> ChessPiece {
+        self.turns.push(Turn::movement(movement, &self));
         let (from, to) = match movement {
             OkMovement::EnPassant((from, to), _) => {
                 let enemy_pawn_position = Position { x: to.x, y: from.y };
