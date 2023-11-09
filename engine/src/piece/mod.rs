@@ -8,8 +8,6 @@ use crate::{
     result::{MovementError, MovementType, OkMovement},
 };
 
-use self::position::Position;
-
 pub mod position;
 
 #[cfg(test)]
@@ -121,12 +119,7 @@ impl ChessPiece {
         self.piece_type
     }
 
-    pub fn can_move(
-        &self,
-        from: Position,
-        to: Position,
-        board: &Board,
-    ) -> Result<OkMovement, MovementError> {
+    pub fn can_move(&self, from: u64, to: u64, board: &Board) -> Result<OkMovement, MovementError> {
         let movement = self.sudo_legal_move(from, to, board)?;
 
         let creates_check = board.creates_check(movement);
@@ -140,32 +133,28 @@ impl ChessPiece {
 
     //TODO: Too expensive, refactor
     /// Returns a list of legal moves for the piece at the given position
-    pub fn legal_moves(&self, from: Position, board: &Board) -> Vec<Position> {
+    pub fn legal_moves(&self, from: u64, board: &Board) -> Vec<u64> {
         let mut legal_moves = Vec::new();
 
-        for x in 0..8 {
-            for y in 0..8 {
-                let to = Position { x, y };
+        for x in 0..64 {
+            let to = 1 << x;
 
-                if self.can_move(from, to, board).is_ok() {
-                    legal_moves.push(to);
-                }
+            if self.can_move(from, to, board).is_ok() {
+                legal_moves.push(to);
             }
         }
 
         legal_moves
     }
 
-    pub fn attack_board(&self, from: Position, board: &Board) -> u64 {
+    pub fn attack_board(&self, from: u64, board: &Board) -> u64 {
         let mut attack_board = 0;
 
         for x in 0..8 {
-            for y in 0..8 {
-                let to = Position { x, y };
+            let to = 1 << x;
 
-                if self.sudo_legal_move(from, to, board).is_ok() {
-                    attack_board |= to.to_bit_board();
-                }
+            if self.sudo_legal_move(from, to, board).is_ok() {
+                attack_board |= to;
             }
         }
 
@@ -174,8 +163,8 @@ impl ChessPiece {
 
     fn sudo_legal_move(
         &self,
-        from: Position,
-        to: Position,
+        from: u64,
+        to: u64,
         board: &Board,
     ) -> Result<OkMovement, MovementError> {
         if from == to {
@@ -196,8 +185,8 @@ impl ChessPiece {
 
     fn can_move_pawn(
         &self,
-        from: Position,
-        to: Position,
+        from: u64,
+        to: u64,
         board: &Board,
     ) -> Result<OkMovement, MovementError> {
         let x_diff = to.x - from.x;
@@ -294,8 +283,8 @@ impl ChessPiece {
 
     fn can_move_bishop(
         &self,
-        from: Position,
-        to: Position,
+        from: u64,
+        to: u64,
         board: &Board,
     ) -> Result<OkMovement, MovementError> {
         let x_diff = (to.x - from.x).abs();
@@ -329,8 +318,8 @@ impl ChessPiece {
 
     fn can_move_rock(
         &self,
-        from: Position,
-        to: Position,
+        from: u64,
+        to: u64,
         board: &Board,
     ) -> Result<OkMovement, MovementError> {
         let x_diff = (to.x - from.x).abs();
@@ -367,8 +356,8 @@ impl ChessPiece {
 
     fn can_move_king(
         &self,
-        from: Position,
-        to: Position,
+        from: u64,
+        to: u64,
         board: &Board,
     ) -> Result<OkMovement, MovementError> {
         let x_diff = to.x - from.x;
@@ -404,8 +393,8 @@ impl ChessPiece {
 
     fn can_move_knight(
         &self,
-        from: Position,
-        to: Position,
+        from: u64,
+        to: u64,
         board: &Board,
     ) -> Result<OkMovement, MovementError> {
         let x_diff = (to.x - from.x).abs();
@@ -436,8 +425,8 @@ impl ChessPiece {
 
     fn can_move_queen(
         &self,
-        from: Position,
-        to: Position,
+        from: u64,
+        to: u64,
         board: &Board,
     ) -> Result<OkMovement, MovementError> {
         let x_diff = (to.x - from.x).abs();
@@ -476,20 +465,20 @@ impl ChessPiece {
 
     fn can_perform_castling(
         &self,
-        from: Position,
-        to: Position,
+        from: u64,
+        to: u64,
         board: &Board,
     ) -> Result<OkMovement, MovementError> {
         let x_diff = to.x - from.x;
 
         let rock_from = match x_diff {
-            2 => Position { x: 7, y: from.y },
-            -2 => Position { x: 0, y: from.y },
+            2 => u64 { x: 7, y: from.y },
+            -2 => u64 { x: 0, y: from.y },
             _ => return Err(MovementError::InvalidMovement),
         };
         let rock_to = match x_diff {
-            2 => Position { x: 5, y: from.y },
-            -2 => Position { x: 3, y: from.y },
+            2 => u64 { x: 5, y: from.y },
+            -2 => u64 { x: 3, y: from.y },
             _ => return Err(MovementError::InvalidMovement),
         };
 
@@ -511,8 +500,8 @@ impl ChessPiece {
 
         //3. There are no pieces between the king and the chosen rook.
         let is_path_clear = match x_diff {
-            2 => board.is_horizontal_path_clean(from, Position { x: 7, y: from.y }),
-            -2 => board.is_horizontal_path_clean(from, Position { x: 0, y: from.y }),
+            2 => board.is_horizontal_path_clean(from, to),
+            -2 => board.is_horizontal_path_clean(from, to),
             _ => return Err(MovementError::InvalidMovement),
         };
         if !is_path_clear {
@@ -522,14 +511,14 @@ impl ChessPiece {
         //4. The king is not currently in check and does not pass through a square that is attacked by an enemy piece.
         let path_under_attack = match x_diff {
             2 => {
-                board.is_position_been_attacked(Position { x: 4, y: from.y }, self.color)
-                    || board.is_position_been_attacked(Position { x: 5, y: from.y }, self.color)
-                    || board.is_position_been_attacked(Position { x: 6, y: from.y }, self.color)
+                board.is_position_been_attacked(to, self.color)
+                    || board.is_position_been_attacked(to, self.color)
+                    || board.is_position_been_attacked(to, self.color)
             }
             -2 => {
-                board.is_position_been_attacked(Position { x: 2, y: from.y }, self.color)
-                    || board.is_position_been_attacked(Position { x: 3, y: from.y }, self.color)
-                    || board.is_position_been_attacked(Position { x: 4, y: from.y }, self.color)
+                board.is_position_been_attacked(to, self.color)
+                    || board.is_position_been_attacked(to, self.color)
+                    || board.is_position_been_attacked(to, self.color)
             }
             _ => return Err(MovementError::InvalidMovement),
         };
@@ -542,7 +531,7 @@ impl ChessPiece {
         return Ok(self.castling(from, to, rock_from, rock_to));
     }
 
-    fn valid(&self, from: Position, to: Position) -> OkMovement {
+    fn valid(&self, from: u64, to: u64) -> OkMovement {
         OkMovement {
             from,
             to,
@@ -551,7 +540,7 @@ impl ChessPiece {
         }
     }
 
-    fn capture(&self, from: Position, to: Position, captured_piece: ChessPiece) -> OkMovement {
+    fn capture(&self, from: u64, to: u64, captured_piece: ChessPiece) -> OkMovement {
         OkMovement {
             from,
             to,
@@ -560,7 +549,7 @@ impl ChessPiece {
         }
     }
 
-    fn en_passant(&self, from: Position, to: Position, captured_piece: ChessPiece) -> OkMovement {
+    fn en_passant(&self, from: u64, to: u64, captured_piece: ChessPiece) -> OkMovement {
         OkMovement {
             from,
             to,
@@ -569,7 +558,7 @@ impl ChessPiece {
         }
     }
 
-    fn initial_double_advance(&self, from: Position, to: Position) -> OkMovement {
+    fn initial_double_advance(&self, from: u64, to: u64) -> OkMovement {
         OkMovement {
             from,
             to,
@@ -578,13 +567,7 @@ impl ChessPiece {
         }
     }
 
-    fn castling(
-        &self,
-        from: Position,
-        to: Position,
-        rock_from: Position,
-        rock_to: Position,
-    ) -> OkMovement {
+    fn castling(&self, from: u64, to: u64, rock_from: u64, rock_to: u64) -> OkMovement {
         OkMovement {
             from,
             to,

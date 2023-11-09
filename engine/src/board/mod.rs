@@ -264,11 +264,11 @@ impl Board {
         }
     }
 
-    pub fn get_piece_at(&self, position: Position) -> Option<ChessPiece> {
-        self.bit_board.piece_at_position(position)
+    pub fn get_piece_at(&self, position: u64) -> Option<ChessPiece> {
+        self.bit_board.piece_at_bit_board(position)
     }
 
-    pub fn is_vertical_path_clean(&self, from: Position, to: Position) -> bool {
+    pub fn is_vertical_path_clean(&self, from: u64, to: u64) -> bool {
         let mut y = from.y;
         let x = from.x;
 
@@ -293,7 +293,7 @@ impl Board {
         true
     }
 
-    pub fn is_horizontal_path_clean(&self, from: Position, to: Position) -> bool {
+    pub fn is_horizontal_path_clean(&self, from: u64, to: u64) -> bool {
         let mut x = from.x;
         let y = from.y;
 
@@ -316,7 +316,7 @@ impl Board {
         true
     }
 
-    pub fn is_diagonal_path_clean(&self, from: Position, to: Position) -> bool {
+    pub fn is_diagonal_path_clean(&self, from: u64, to: u64) -> bool {
         let mut x = from.x;
         let mut y = from.y;
 
@@ -365,11 +365,10 @@ impl Board {
         self.en_passant
     }
 
-    pub fn is_position_been_attacked(&self, target: Position, defender: Color) -> bool {
-        let position_bit_board = target.to_bit_board();
+    pub fn is_position_been_attacked(&self, target: u64, defender: Color) -> bool {
         let attacker = defender.other();
         let attack_board = self.color_attack_board(attacker);
-        attack_board & position_bit_board != 0
+        attack_board & target != 0
     }
 
     fn is_checkmate(&self, player_color: Color) -> bool {

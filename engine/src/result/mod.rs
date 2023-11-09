@@ -53,8 +53,8 @@ impl Error for MovementError {}
 pub struct OkMovement {
     pub mover: ChessPiece,
     pub movement_type: MovementType,
-    pub from: Position,
-    pub to: Position,
+    pub from: u64,
+    pub to: u64,
 }
 
 /// The Ok variant of the Movement
@@ -69,6 +69,6 @@ pub enum MovementType {
     Valid,
     Capture(ChessPiece),
     EnPassant(ChessPiece),
-    Castling(Position, Position),
+    Castling(u64, u64),
     InitialDoubleAdvance,
 }
