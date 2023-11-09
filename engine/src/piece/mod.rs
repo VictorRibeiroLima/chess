@@ -5,7 +5,7 @@ use colored::Colorize;
 
 use crate::{
     board::Board,
-    result::{Movement, MovementError, OkMovement},
+    result::{MovementError, MovementType, OkMovement},
 };
 
 use self::position::Position;
@@ -57,13 +57,21 @@ impl Display for Color {
     }
 }
 
+impl Color {
+    pub fn other(&self) -> Color {
+        match self {
+            Color::White => Color::Black,
+            Color::Black => Color::White,
+        }
+    }
+}
+
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ChessPiece {
     #[serde(rename = "type")]
     piece_type: Type,
     color: Color,
-    pub moves: u32,
 }
 
 impl Display for ChessPiece {
@@ -78,11 +86,7 @@ impl Display for ChessPiece {
 
 impl ChessPiece {
     pub fn new(piece_type: Type, color: Color) -> ChessPiece {
-        ChessPiece {
-            piece_type,
-            color,
-            moves: 0,
-        }
+        ChessPiece { piece_type, color }
     }
 
     pub fn create_king(color: Color) -> ChessPiece {
@@ -123,23 +127,7 @@ impl ChessPiece {
         to: Position,
         board: &Board,
     ) -> Result<OkMovement, MovementError> {
-        if from == to {
-            return Err(MovementError::SamePosition);
-        }
-        let movement = match self.piece_type {
-            Type::Pawn => self.can_move_pawn(&from, &to, board),
-            Type::Bishop => self.can_move_bishop(&from, &to, board),
-            Type::Rook => self.can_move_rock(&from, &to, board),
-            Type::King => self.can_move_king(&from, &to, board),
-            Type::Knight => self.can_move_knight(&from, &to, board),
-            Type::Queen => self.can_move_queen(&from, &to, board),
-        };
-
-        if movement.is_err() {
-            return movement;
-        }
-
-        let movement = movement.unwrap();
+        let movement = self.sudo_legal_move(from, to, board)?;
 
         let creates_check = board.creates_check(movement);
 
@@ -168,10 +156,48 @@ impl ChessPiece {
         legal_moves
     }
 
+    pub fn attack_board(&self, from: Position, board: &Board) -> u64 {
+        let mut attack_board = 0;
+
+        for x in 0..8 {
+            for y in 0..8 {
+                let to = Position { x, y };
+
+                if self.sudo_legal_move(from, to, board).is_ok() {
+                    attack_board |= to.to_bit_board();
+                }
+            }
+        }
+
+        attack_board
+    }
+
+    fn sudo_legal_move(
+        &self,
+        from: Position,
+        to: Position,
+        board: &Board,
+    ) -> Result<OkMovement, MovementError> {
+        if from == to {
+            return Err(MovementError::SamePosition);
+        }
+
+        let movement = match self.piece_type {
+            Type::Pawn => self.can_move_pawn(from, to, board),
+            Type::Bishop => self.can_move_bishop(from, to, board),
+            Type::Rook => self.can_move_rock(from, to, board),
+            Type::King => self.can_move_king(from, to, board),
+            Type::Knight => self.can_move_knight(from, to, board),
+            Type::Queen => self.can_move_queen(from, to, board),
+        };
+
+        return movement;
+    }
+
     fn can_move_pawn(
         &self,
-        from: &Position,
-        to: &Position,
+        from: Position,
+        to: Position,
         board: &Board,
     ) -> Result<OkMovement, MovementError> {
         let x_diff = to.x - from.x;
@@ -182,17 +208,18 @@ impl ChessPiece {
 
         match (x_diff.abs(), y_diff, piece_at_position) {
             // No piece at the destination
-            (0, 1, None) if color == Color::White => Ok(OkMovement::Valid((*from, *to))),
-            (0, -1, None) if color == Color::Black => Ok(OkMovement::Valid((*from, *to))),
+            (0, 1, None) if color == Color::White => Ok(self.valid(from, to)),
+            (0, -1, None) if color == Color::Black => Ok(self.valid(from, to)),
 
             // First move, allowing two squares
             (0, 2, None) => {
                 let is_path_clear = board.is_vertical_path_clean(from, to);
                 let is_color_white = color == Color::White;
-                let is_first_move = self.moves == 0;
+                //if the pawn is white, it should be at the second row
+                let is_first_move = from.y == 1;
                 let valid = is_path_clear && is_color_white && is_first_move;
                 if valid {
-                    Ok(OkMovement::InitialDoubleAdvance((*from, *to)))
+                    Ok(self.initial_double_advance(from, to))
                 } else {
                     Err(MovementError::InvalidMovement)
                 }
@@ -200,10 +227,11 @@ impl ChessPiece {
             (0, -2, None) => {
                 let is_path_clear = board.is_vertical_path_clean(from, to);
                 let is_color_black = color == Color::Black;
-                let is_first_move = self.moves == 0;
+                //if the pawn is black, it should be at the seventh row
+                let is_first_move = from.y == 6;
                 let valid = is_path_clear && is_color_black && is_first_move;
                 if valid {
-                    Ok(OkMovement::InitialDoubleAdvance((*from, *to)))
+                    Ok(self.initial_double_advance(from, to))
                 } else {
                     Err(MovementError::InvalidMovement)
                 }
@@ -211,66 +239,50 @@ impl ChessPiece {
 
             // Capture diagonally (forward for white, backward for black)
             (1, 1, Some(other_piece)) if color == Color::White && color != other_piece.color => {
-                Ok(OkMovement::Capture((*from, *to), *other_piece))
+                Ok(self.capture(from, to, other_piece))
             }
             (1, -1, Some(other_piece)) if color == Color::Black && color != other_piece.color => {
-                Ok(OkMovement::Capture((*from, *to), *other_piece))
+                Ok(self.capture(from, to, other_piece))
             }
 
             //EnPassant
             (1, 1, None) => {
-                let last_move = board.get_last_move();
-                let last_move = match last_move {
+                let en_passant = board.en_passant();
+                let en_passant = match en_passant {
                     Some(result) => result,
                     None => return Err(MovementError::InvalidMovement),
                 };
 
-                let last_move = match last_move {
-                    Movement::Move(OkMovement::InitialDoubleAdvance((from, to))) => (from, to),
-                    _ => return Err(MovementError::InvalidMovement),
-                };
-                let to_last_move = last_move.1;
                 let is_color_white = color == Color::White;
 
                 // If the moving piece's current Y-axis is the same as the last move's destination Y-axis
                 // and the last move's destination X-axis is the same as the target X-axis,
                 // then the last moved piece is going to be behind the moving piece
-                let is_last_move_behind = to_last_move.y == from.y && to_last_move.x == to.x;
+                let valid_en_passant = en_passant.y == from.y && en_passant.x == to.x;
 
-                let valid = is_color_white && is_last_move_behind;
+                let valid = is_color_white && valid_en_passant;
 
                 if valid {
-                    Ok(OkMovement::EnPassant(
-                        (*from, *to),
-                        ChessPiece::create_pawn(Color::Black),
-                    ))
+                    Ok(self.en_passant(from, to, ChessPiece::create_pawn(Color::Black)))
                 } else {
                     Err(MovementError::InvalidMovement)
                 }
             }
             (1, -1, None) => {
-                let last_move = board.get_last_move();
-                let last_move = match last_move {
+                let en_passant = board.en_passant();
+                let en_passant = match en_passant {
                     Some(result) => result,
                     None => return Err(MovementError::InvalidMovement),
                 };
 
-                let last_move = match last_move {
-                    Movement::Move(OkMovement::InitialDoubleAdvance((from, to))) => (from, to),
-                    _ => return Err(MovementError::InvalidMovement),
-                };
-                let to_last_move = last_move.1;
                 let is_color_black = color == Color::Black;
 
-                let is_last_move_behind = to_last_move.y == from.y && to_last_move.x == to.x;
+                let valid_en_passant = en_passant.y == from.y && en_passant.x == to.x;
 
-                let valid = is_color_black && is_last_move_behind;
+                let valid = is_color_black && valid_en_passant;
 
                 if valid {
-                    Ok(OkMovement::EnPassant(
-                        (*from, *to),
-                        ChessPiece::create_pawn(Color::White),
-                    ))
+                    Ok(self.en_passant(from, to, ChessPiece::create_pawn(Color::White)))
                 } else {
                     Err(MovementError::InvalidMovement)
                 }
@@ -282,8 +294,8 @@ impl ChessPiece {
 
     fn can_move_bishop(
         &self,
-        from: &Position,
-        to: &Position,
+        from: Position,
+        to: Position,
         board: &Board,
     ) -> Result<OkMovement, MovementError> {
         let x_diff = (to.x - from.x).abs();
@@ -303,11 +315,11 @@ impl ChessPiece {
         }
 
         match piece_at_position {
-            None => Ok(OkMovement::Valid((*from, *to))),
+            None => Ok(self.valid(from, to)),
             Some(other_piece) => {
                 let capture = color != other_piece.color;
                 if capture {
-                    Ok(OkMovement::Capture((*from, *to), *other_piece))
+                    Ok(self.capture(from, to, other_piece))
                 } else {
                     Err(MovementError::InvalidMovement)
                 }
@@ -317,8 +329,8 @@ impl ChessPiece {
 
     fn can_move_rock(
         &self,
-        from: &Position,
-        to: &Position,
+        from: Position,
+        to: Position,
         board: &Board,
     ) -> Result<OkMovement, MovementError> {
         let x_diff = (to.x - from.x).abs();
@@ -341,11 +353,11 @@ impl ChessPiece {
         let piece_at_position = board.get_piece_at(to);
 
         match piece_at_position {
-            None => Ok(OkMovement::Valid((*from, *to))),
+            None => Ok(self.valid(from, to)),
             Some(other_piece) => {
                 let capture = self.color != other_piece.color;
                 if capture {
-                    Ok(OkMovement::Capture((*from, *to), *other_piece))
+                    Ok(self.capture(from, to, other_piece))
                 } else {
                     Err(MovementError::InvalidMovement)
                 }
@@ -355,8 +367,8 @@ impl ChessPiece {
 
     fn can_move_king(
         &self,
-        from: &Position,
-        to: &Position,
+        from: Position,
+        to: Position,
         board: &Board,
     ) -> Result<OkMovement, MovementError> {
         let x_diff = to.x - from.x;
@@ -378,11 +390,11 @@ impl ChessPiece {
         let piece_at_position = board.get_piece_at(to);
 
         match piece_at_position {
-            None => Ok(OkMovement::Valid((*from, *to))),
+            None => Ok(self.valid(from, to)),
             Some(other_piece) => {
                 let capture = self.color != other_piece.color;
                 if capture {
-                    Ok(OkMovement::Capture((*from, *to), *other_piece))
+                    Ok(self.capture(from, to, other_piece))
                 } else {
                     Err(MovementError::InvalidMovement)
                 }
@@ -392,8 +404,8 @@ impl ChessPiece {
 
     fn can_move_knight(
         &self,
-        from: &Position,
-        to: &Position,
+        from: Position,
+        to: Position,
         board: &Board,
     ) -> Result<OkMovement, MovementError> {
         let x_diff = (to.x - from.x).abs();
@@ -410,11 +422,11 @@ impl ChessPiece {
         let piece_at_position = board.get_piece_at(to);
 
         match piece_at_position {
-            None => Ok(OkMovement::Valid((*from, *to))),
+            None => Ok(self.valid(from, to)),
             Some(other_piece) => {
                 let capture = self.color != other_piece.color;
                 if capture {
-                    Ok(OkMovement::Capture((*from, *to), *other_piece))
+                    Ok(self.capture(from, to, other_piece))
                 } else {
                     Err(MovementError::InvalidMovement)
                 }
@@ -424,8 +436,8 @@ impl ChessPiece {
 
     fn can_move_queen(
         &self,
-        from: &Position,
-        to: &Position,
+        from: Position,
+        to: Position,
         board: &Board,
     ) -> Result<OkMovement, MovementError> {
         let x_diff = (to.x - from.x).abs();
@@ -450,11 +462,11 @@ impl ChessPiece {
         }
 
         match piece_at_position {
-            None => Ok(OkMovement::Valid((*from, *to))),
+            None => Ok(self.valid(from, to)),
             Some(other_piece) => {
                 let capture = color != other_piece.color;
                 if capture {
-                    Ok(OkMovement::Capture((*from, *to), *other_piece))
+                    Ok(self.capture(from, to, other_piece))
                 } else {
                     Err(MovementError::InvalidMovement)
                 }
@@ -464,8 +476,8 @@ impl ChessPiece {
 
     fn can_perform_castling(
         &self,
-        from: &Position,
-        to: &Position,
+        from: Position,
+        to: Position,
         board: &Board,
     ) -> Result<OkMovement, MovementError> {
         let x_diff = to.x - from.x;
@@ -482,24 +494,25 @@ impl ChessPiece {
         };
 
         //1. The king and the chosen rook are on the player's first rank.
-        let rock = board.get_piece_at(&rock_from);
+        let rock = board.get_piece_at(rock_from);
         let rock = match rock {
             Some(rock) => rock,
             None => return Err(MovementError::InvalidMovement),
         };
 
-        //2. Neither the king nor the chosen rook has previously moved.
-        if self.moves > 0 {
+        if rock.color != self.color {
             return Err(MovementError::InvalidMovement);
         }
-        if rock.moves > 0 {
+
+        //2. Neither the king nor the chosen rook has previously moved.
+        if !board.can_castle(self.color) {
             return Err(MovementError::InvalidMovement);
         }
 
         //3. There are no pieces between the king and the chosen rook.
         let is_path_clear = match x_diff {
-            2 => board.is_horizontal_path_clean(from, &Position { x: 7, y: from.y }),
-            -2 => board.is_horizontal_path_clean(from, &Position { x: 0, y: from.y }),
+            2 => board.is_horizontal_path_clean(from, Position { x: 7, y: from.y }),
+            -2 => board.is_horizontal_path_clean(from, Position { x: 0, y: from.y }),
             _ => return Err(MovementError::InvalidMovement),
         };
         if !is_path_clear {
@@ -520,10 +533,63 @@ impl ChessPiece {
             }
             _ => return Err(MovementError::InvalidMovement),
         };
+
+        println!("path_under_attack: {}", path_under_attack);
         if path_under_attack {
             return Err(MovementError::InvalidMovement);
         }
 
-        return Ok(OkMovement::Castling((*from, *to), (rock_from, rock_to)));
+        return Ok(self.castling(from, to, rock_from, rock_to));
+    }
+
+    fn valid(&self, from: Position, to: Position) -> OkMovement {
+        OkMovement {
+            from,
+            to,
+            movement_type: MovementType::Valid,
+            mover: *self,
+        }
+    }
+
+    fn capture(&self, from: Position, to: Position, captured_piece: ChessPiece) -> OkMovement {
+        OkMovement {
+            from,
+            to,
+            movement_type: MovementType::Capture(captured_piece),
+            mover: *self,
+        }
+    }
+
+    fn en_passant(&self, from: Position, to: Position, captured_piece: ChessPiece) -> OkMovement {
+        OkMovement {
+            from,
+            to,
+            movement_type: MovementType::EnPassant(captured_piece),
+            mover: *self,
+        }
+    }
+
+    fn initial_double_advance(&self, from: Position, to: Position) -> OkMovement {
+        OkMovement {
+            from,
+            to,
+            movement_type: MovementType::InitialDoubleAdvance,
+            mover: *self,
+        }
+    }
+
+    fn castling(
+        &self,
+        from: Position,
+        to: Position,
+        rock_from: Position,
+        rock_to: Position,
+    ) -> OkMovement {
+        OkMovement {
+            from,
+            to,
+            movement_type: MovementType::Castling(rock_from, rock_to),
+            mover: *self,
+        }
     }
 }

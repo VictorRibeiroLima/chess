@@ -7,6 +7,27 @@ pub struct Position {
     pub y: i32,
 }
 
+impl Position {
+    pub fn to_bit_board(&self) -> u64 {
+        1 << (self.x + self.y * 8)
+    }
+
+    pub fn from_bit_board(bit_board: u64) -> Position {
+        let mut bit_board = bit_board;
+        let mut x = 0;
+        let mut y = 0;
+        while bit_board & 1 == 0 {
+            bit_board >>= 1;
+            x += 1;
+            if x == 8 {
+                x = 0;
+                y += 1;
+            }
+        }
+        Position { x, y }
+    }
+}
+
 impl<'de> Deserialize<'de> for Position {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where

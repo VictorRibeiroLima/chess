@@ -49,25 +49,26 @@ impl Display for MovementError {
 
 impl Error for MovementError {}
 
-/// The Ok variant of the Movement
-/// Valid((Position, Position)) - A valid movement (from, to)
-/// Capture((Position, Position)) - A valid capture movement (from, to)
-/// EnPassant((Position, Position)) - A valid en passant movement (from, to)
-/// Castling((Position, Position), (Position, Position)) - A valid castling movement (king, rock) (from, to)
-/// InitialDoubleAdvance((Position, Position)) - A valid initial double advance of a pawn movement (from, to)
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub enum OkMovement {
-    Valid((Position, Position)),
-    Capture((Position, Position), ChessPiece),
-    EnPassant((Position, Position), ChessPiece),
-    Castling((Position, Position), (Position, Position)),
-    InitialDoubleAdvance((Position, Position)),
+pub struct OkMovement {
+    pub mover: ChessPiece,
+    pub movement_type: MovementType,
+    pub from: Position,
+    pub to: Position,
 }
 
+/// The Ok variant of the Movement
+/// Valid - A valid movement
+/// CaptureChessPiece) - A valid capture movement (Captured piece)
+/// EnPassant() - A valid en passant movement (Captured piece)
+/// Castling((Position, Position)) - A valid castling movement (rook from, rook to)
+/// InitialDoubleAdvance - A valid initial double advance of a pawn movement
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub enum Movement {
-    Move(OkMovement),
-    Promotion(Position, Type),
+pub enum MovementType {
+    Valid,
+    Capture(ChessPiece),
+    EnPassant(ChessPiece),
+    Castling(Position, Position),
+    InitialDoubleAdvance,
 }

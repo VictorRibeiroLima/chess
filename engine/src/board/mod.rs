@@ -2,26 +2,26 @@ use std::fmt;
 
 use crate::{
     piece::{position::Position, ChessPiece, Color, Type},
-    result::{Movement, MovementError, OkMovement, PromotionError},
+    result::{MovementError, MovementType, OkMovement, PromotionError},
 };
 
+mod bit_board;
 pub mod state;
 
-use self::state::{GameState, Turn};
+use self::state::GameState;
 
 #[cfg(test)]
 mod test;
 
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub struct Board {
     turn: Color,
-    pieces: [[Option<ChessPiece>; 8]; 8],
     state: GameState,
     check: Option<Color>,
-    turns: Vec<Turn>,
-    turn_number: u32,
-    white_king_position: Position,
-    black_king_position: Position,
+    bit_board: bit_board::BitBoard,
+    en_passant: Option<Position>,
+    white_castling_possible: bool,
+    black_castling_possible: bool,
 }
 
 impl fmt::Display for Board {
@@ -35,7 +35,7 @@ impl fmt::Display for Board {
 
         for y in (0..8).rev() {
             for x in 0..8 {
-                let piece = self.get_piece_at(&Position { x, y });
+                let piece = self.get_piece_at(Position { x, y });
                 match piece {
                     Some(piece) => {
                         let piece = piece.to_string();
@@ -61,138 +61,38 @@ impl Board {
     pub fn new() -> Board {
         Board {
             turn: Color::White,
-            pieces: Board::initial_pieces_setup(),
             state: GameState::InProgress,
             check: None,
-            turns: Vec::new(),
-            turn_number: 0,
-            white_king_position: Position { x: 4, y: 0 },
-            black_king_position: Position { x: 4, y: 7 },
+            bit_board: bit_board::BitBoard::new(),
+            en_passant: None,
+            white_castling_possible: true,
+            black_castling_possible: true,
         }
     }
 
     #[cfg(test)]
     pub fn mock(
-        pieces: [[Option<ChessPiece>; 8]; 8],
+        arr: [[Option<ChessPiece>; 8]; 8],
         turn: Color,
         check: Option<Color>,
         _: Option<OkMovement>,
     ) -> Board {
-        let mut white_king_position = Position { x: 4, y: 0 };
-        let mut black_king_position = Position { x: 4, y: 7 };
-
-        for y in 0..8 {
-            for x in 0..8 {
-                let position = Position { x, y };
-                let piece = pieces[y as usize][x as usize];
-                if let Some(piece) = piece {
-                    let piece_type = piece.get_type();
-                    let piece_color = piece.get_color();
-                    if piece_type == Type::King {
-                        if piece_color == Color::White {
-                            white_king_position = position;
-                        } else {
-                            black_king_position = position;
-                        }
-                    }
-                }
-            }
-        }
-
         Board {
             turn,
-            pieces,
             state: GameState::InProgress,
             check,
-            turns: Vec::new(),
-            turn_number: 0,
-            white_king_position,
-            black_king_position,
+            bit_board: bit_board::BitBoard::from_array(arr),
+            en_passant: None,
+            white_castling_possible: true,
+            black_castling_possible: true,
         }
     }
 
     pub fn reset(&mut self) {
         self.turn = Color::White;
-        self.pieces = Board::initial_pieces_setup();
         self.state = GameState::InProgress;
         self.check = None;
-        self.turns = Vec::new();
-        self.turn_number = 0;
-        self.white_king_position = Position { x: 4, y: 0 };
-        self.black_king_position = Position { x: 4, y: 7 };
-    }
-
-    pub fn undo(&mut self) {
-        if self.turns.is_empty() {
-            return;
-        }
-        if self.turns.len() == 1 {
-            self.reset();
-            return;
-        }
-        let turn = self.turns.pop().unwrap(); // Safe to unwrap, we checked if it's empty
-        match turn.movement {
-            Movement::Move(movement) => {
-                match movement {
-                    OkMovement::Valid((from, to)) => {
-                        let mut piece = self.pieces[to.y as usize][to.x as usize].unwrap();
-                        piece.moves = piece.moves - 1;
-                        self.pieces[to.y as usize][to.x as usize] = None;
-                        self.pieces[from.y as usize][from.x as usize] = Some(piece);
-                    }
-                    OkMovement::Capture((from, to), captured_piece) => {
-                        let mut piece = self.pieces[to.y as usize][to.x as usize].unwrap();
-                        piece.moves = piece.moves - 1;
-                        self.pieces[to.y as usize][to.x as usize] = Some(captured_piece);
-                        self.pieces[from.y as usize][from.x as usize] = Some(piece);
-                    }
-                    OkMovement::EnPassant((from, to), captured_piece) => {
-                        let mut piece = self.pieces[to.y as usize][to.x as usize].unwrap();
-                        piece.moves = piece.moves - 1;
-                        self.pieces[to.y as usize][to.x as usize] = None;
-                        self.pieces[from.y as usize][from.x as usize] = Some(piece);
-                        let enemy_pawn_position = Position { x: to.x, y: from.y };
-                        self.pieces[enemy_pawn_position.y as usize]
-                            [enemy_pawn_position.x as usize] = Some(captured_piece);
-                    }
-                    OkMovement::Castling(king, rock) => {
-                        let king_from = king.0;
-                        let king_to = king.1;
-                        let rock_from = rock.0;
-                        let rock_to = rock.1;
-
-                        let mut rock = self.pieces[rock_to.y as usize][rock_to.x as usize].unwrap();
-                        rock.moves = 0;
-                        self.pieces[rock_from.y as usize][rock_from.x as usize] = Some(rock);
-                        self.pieces[rock_to.y as usize][rock_to.x as usize] = None;
-
-                        let mut king = self.pieces[king_to.y as usize][king_to.x as usize].unwrap();
-                        king.moves = 0;
-                        self.pieces[king_from.y as usize][king_from.x as usize] = Some(king);
-                        self.pieces[king_to.y as usize][king_to.x as usize] = None;
-                    }
-                    OkMovement::InitialDoubleAdvance((from, to)) => {
-                        let mut piece = self.pieces[to.y as usize][to.x as usize].unwrap();
-                        piece.moves = 0;
-                        self.pieces[to.y as usize][to.x as usize] = None;
-                        self.pieces[from.y as usize][from.x as usize] = Some(piece);
-                    }
-                };
-            }
-            Movement::Promotion(on, _) => {
-                let piece = self.pieces[on.y as usize][on.x as usize].unwrap();
-                let color = piece.get_color();
-                let mut pawn = ChessPiece::create_pawn(color);
-                pawn.moves = piece.moves;
-
-                self.pieces[on.y as usize][on.x as usize] = Some(pawn);
-            }
-        };
-        self.turn = turn.color;
-        self.state = turn.state;
-        self.check = turn.check;
-        self.white_king_position = turn.white_king_position;
-        self.black_king_position = turn.black_king_position;
+        self.bit_board = bit_board::BitBoard::new();
     }
 
     pub fn get_state(&self) -> GameState {
@@ -207,12 +107,11 @@ impl Board {
         self.check
     }
 
-    pub fn get_last_move(&self) -> Option<Movement> {
-        self.turns.last().map(|turn| turn.movement)
-    }
-
-    pub fn get_turn_number(&self) -> u32 {
-        self.turn_number
+    pub fn can_castle(&self, color: Color) -> bool {
+        match color {
+            Color::White => self.white_castling_possible,
+            Color::Black => self.black_castling_possible,
+        }
     }
 
     pub fn get_promotion_color(&self) -> Option<Color> {
@@ -222,8 +121,8 @@ impl Board {
         }
     }
 
-    pub fn get_pieces(&self) -> &[[Option<ChessPiece>; 8]; 8] {
-        &self.pieces
+    pub fn get_pieces(&self) -> [[Option<ChessPiece>; 8]; 8] {
+        self.bit_board.to_array()
     }
 
     /// Resign the game, and returns the winner
@@ -245,7 +144,7 @@ impl Board {
         for y in 0..8 {
             for x in 0..8 {
                 let position = Position { x, y };
-                let piece = self.get_piece_at(&position);
+                let piece = self.get_piece_at(position);
                 if let Some(piece) = piece {
                     let piece_color = piece.get_color();
                     if piece_color == self.turn {
@@ -260,7 +159,7 @@ impl Board {
         moves
     }
 
-    pub fn promote(&mut self, mut piece: ChessPiece) -> Result<(Position, Type), PromotionError> {
+    pub fn promote(&mut self, piece: ChessPiece) -> Result<(Position, Type), PromotionError> {
         let piece_type = piece.get_type();
         // can't promote to a pawn or king
         if piece_type == Type::Pawn || piece_type == Type::King {
@@ -279,14 +178,10 @@ impl Board {
             GameState::InProgress => return Err(PromotionError::NoPromotion),
         };
 
-        let old_piece = self.pieces[position.y as usize][position.x as usize].unwrap();
+        self.bit_board.remove_piece_at_position(position);
+        self.bit_board.add_piece_at_position(piece, position);
 
-        piece.moves = old_piece.moves;
-
-        self.pieces[position.y as usize][position.x as usize] = Some(piece);
         self.state = GameState::InProgress;
-        self.turns
-            .push(Turn::promotion(position, piece_type, &self));
 
         self.change_turn();
         let enemy_color = self.next_turn();
@@ -325,12 +220,13 @@ impl Board {
             return Err(error);
         }
 
-        let piece = self.get_piece_at(&from).cloned();
+        let piece = self.get_piece_at(from);
         match piece {
             Some(piece) => {
                 if piece.get_color() != self.turn {
                     return Err(MovementError::InvalidPiece);
                 }
+
                 let movement = piece.can_move(from, to, self);
                 let can_move = movement.is_ok();
                 if can_move {
@@ -368,16 +264,11 @@ impl Board {
         }
     }
 
-    pub fn get_piece_at(&self, position: &Position) -> Option<&ChessPiece> {
-        // Invalid position
-        if position.x < 0 || position.x > 7 || position.y < 0 || position.y > 7 {
-            return None;
-        }
-        let piece = self.pieces[position.y as usize][position.x as usize].as_ref();
-        piece
+    pub fn get_piece_at(&self, position: Position) -> Option<ChessPiece> {
+        self.bit_board.piece_at_position(position)
     }
 
-    pub fn is_vertical_path_clean(&self, from: &Position, to: &Position) -> bool {
+    pub fn is_vertical_path_clean(&self, from: Position, to: Position) -> bool {
         let mut y = from.y;
         let x = from.x;
 
@@ -390,11 +281,11 @@ impl Board {
 
             let position = Position { x, y };
 
-            if position == *to {
+            if position == to {
                 break;
             }
 
-            if self.get_piece_at(&position).is_some() {
+            if !self.bit_board.is_position_clean(position) {
                 return false;
             }
         }
@@ -402,7 +293,7 @@ impl Board {
         true
     }
 
-    pub fn is_horizontal_path_clean(&self, from: &Position, to: &Position) -> bool {
+    pub fn is_horizontal_path_clean(&self, from: Position, to: Position) -> bool {
         let mut x = from.x;
         let y = from.y;
 
@@ -414,10 +305,10 @@ impl Board {
             }
 
             let position = Position { x, y };
-            if position == *to {
+            if position == to {
                 break;
             }
-            if self.get_piece_at(&position).is_some() {
+            if !self.bit_board.is_position_clean(position) {
                 return false;
             }
         }
@@ -425,7 +316,7 @@ impl Board {
         true
     }
 
-    pub fn is_diagonal_path_clean(&self, from: &Position, to: &Position) -> bool {
+    pub fn is_diagonal_path_clean(&self, from: Position, to: Position) -> bool {
         let mut x = from.x;
         let mut y = from.y;
 
@@ -444,11 +335,11 @@ impl Board {
 
             let position = Position { x, y };
 
-            if position == *to {
+            if position == to {
                 break;
             }
 
-            if self.get_piece_at(&position).is_some() {
+            if !self.bit_board.is_position_clean(position) {
                 return false;
             }
         }
@@ -457,7 +348,7 @@ impl Board {
     }
 
     pub fn creates_check(&self, movement: OkMovement) -> bool {
-        let mut board = self.clone();
+        let mut board = *self;
         let moved_piece = board.make_movement(movement);
 
         match board.state {
@@ -470,42 +361,32 @@ impl Board {
         return is_king_in_check;
     }
 
-    //TODO: keep track of attacked positions of each player to avoid this expensive operation
-    pub fn is_position_been_attacked(&self, target: Position, color: Color) -> bool {
-        for y in 0..8 {
-            for x in 0..8 {
-                let position = Position { x, y };
-                let piece = self.get_piece_at(&position);
-                if let Some(piece) = piece {
-                    let piece_color = piece.get_color();
-                    if piece_color != color {
-                        let movement = piece.can_move(position, target, self);
-                        let can_move = movement.is_ok();
-                        if can_move {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
+    pub fn en_passant(&self) -> Option<Position> {
+        self.en_passant
+    }
 
-        false
+    pub fn is_position_been_attacked(&self, target: Position, defender: Color) -> bool {
+        let position_bit_board = target.to_bit_board();
+        let attacker = defender.other();
+        let attack_board = self.color_attack_board(attacker);
+        attack_board & position_bit_board != 0
     }
 
     fn is_checkmate(&self, player_color: Color) -> bool {
-        for y in 0..8 {
-            for x in 0..8 {
-                if let Some(piece) = self.pieces[y][x] {
-                    if piece.get_color() == player_color {
-                        let from: Position = Position {
-                            x: x as i32,
-                            y: y as i32,
-                        };
-                        let legal_moves = piece.legal_moves(from, self);
-                        if !legal_moves.is_empty() {
-                            return false;
-                        }
-                    }
+        let color_board = match player_color {
+            Color::White => self.bit_board.white_pieces(),
+            Color::Black => self.bit_board.black_pieces(),
+        };
+
+        for i in 0..64 {
+            let position_bit_board = 1 << i;
+            if color_board & position_bit_board != 0 {
+                let position = Position::from_bit_board(position_bit_board);
+                let piece = self.get_piece_at(position).unwrap();
+                let legal_moves = piece.legal_moves(position, self);
+
+                if legal_moves.len() > 0 {
+                    return false;
                 }
             }
         }
@@ -523,33 +404,37 @@ impl Board {
 
     fn find_king_position(&self, color: Color) -> Position {
         match color {
-            Color::White => self.white_king_position,
-            Color::Black => self.black_king_position,
+            Color::White => Position::from_bit_board(self.bit_board.white_king),
+            Color::Black => Position::from_bit_board(self.bit_board.black_king),
         }
     }
 
     ///Make a movement on the board, and returns the moved piece
     fn make_movement(&mut self, movement: OkMovement) -> ChessPiece {
-        self.turns.push(Turn::movement(movement, &self));
-        let (from, to) = match movement {
-            OkMovement::EnPassant((from, to), _) => {
-                let enemy_pawn_position = Position { x: to.x, y: from.y };
-                self.pieces[enemy_pawn_position.y as usize][enemy_pawn_position.x as usize] = None;
-                (from, to)
-            }
-            OkMovement::Castling(king, rock) => {
-                let king_from = king.0;
-                let king_to = king.1;
-                let rock_from = rock.0;
-                let rock_to = rock.1;
+        let from = movement.from;
+        let to = movement.to;
+        let piece = movement.mover;
+        match (piece.get_color(), piece.get_type()) {
+            (Color::White, Type::King) => self.white_castling_possible = false,
+            (Color::White, Type::Rook) => self.white_castling_possible = false,
 
-                let mut rock = self.pieces[rock_from.y as usize][rock_from.x as usize].unwrap();
-                rock.moves = 1;
-                self.pieces[rock_from.y as usize][rock_from.x as usize] = None;
-                self.pieces[rock_to.y as usize][rock_to.x as usize] = Some(rock);
-                (king_from, king_to)
+            (Color::Black, Type::King) => self.black_castling_possible = false,
+            (Color::Black, Type::Rook) => self.black_castling_possible = false,
+
+            _ => {}
+        }
+        self.bit_board.remove_piece_at_position(to);
+        self.bit_board.move_piece(piece, from, to);
+        match movement.movement_type {
+            MovementType::EnPassant(_) => {
+                let enemy_pawn_position = Position { x: to.x, y: from.y };
+                self.bit_board.remove_piece_at_position(enemy_pawn_position);
             }
-            OkMovement::Capture((from, to), captured_piece) => {
+            MovementType::Castling(rock_from, rock_to) => {
+                let rock = self.bit_board.piece_at_position(rock_from).unwrap();
+                self.bit_board.move_piece(rock, rock_from, rock_to);
+            }
+            MovementType::Capture(captured_piece) => {
                 if captured_piece.get_type() == Type::King {
                     if captured_piece.get_color() == Color::White {
                         self.state = GameState::Winner(Color::Black);
@@ -557,23 +442,9 @@ impl Board {
                         self.state = GameState::Winner(Color::White);
                     }
                 }
-                (from, to)
             }
-            OkMovement::InitialDoubleAdvance((from, to)) => (from, to),
-            OkMovement::Valid((from, to)) => (from, to),
-        };
-
-        let mut piece = self.pieces[from.y as usize][from.x as usize].unwrap();
-        piece.moves = piece.moves + 1;
-        self.pieces[from.y as usize][from.x as usize] = None;
-        self.pieces[to.y as usize][to.x as usize] = Some(piece);
-
-        if piece.get_type() == Type::King {
-            if piece.get_color() == Color::White {
-                self.white_king_position = to;
-            } else {
-                self.black_king_position = to;
-            }
+            MovementType::InitialDoubleAdvance => self.en_passant = Some(to),
+            _ => self.en_passant = None,
         };
 
         return piece;
@@ -603,62 +474,21 @@ impl Board {
         }
     }
 
-    fn initial_pieces_setup() -> [[Option<ChessPiece>; 8]; 8] {
-        let first_white_row = [
-            Some(ChessPiece::create_rook(Color::White)),
-            Some(ChessPiece::create_knight(Color::White)),
-            Some(ChessPiece::create_bishop(Color::White)),
-            Some(ChessPiece::create_queen(Color::White)),
-            Some(ChessPiece::create_king(Color::White)),
-            Some(ChessPiece::create_bishop(Color::White)),
-            Some(ChessPiece::create_knight(Color::White)),
-            Some(ChessPiece::create_rook(Color::White)),
-        ];
-
-        let second_white_row = [
-            Some(ChessPiece::create_pawn(Color::White)),
-            Some(ChessPiece::create_pawn(Color::White)),
-            Some(ChessPiece::create_pawn(Color::White)),
-            Some(ChessPiece::create_pawn(Color::White)),
-            Some(ChessPiece::create_pawn(Color::White)),
-            Some(ChessPiece::create_pawn(Color::White)),
-            Some(ChessPiece::create_pawn(Color::White)),
-            Some(ChessPiece::create_pawn(Color::White)),
-        ];
-
-        let first_black_row = [
-            Some(ChessPiece::create_rook(Color::Black)),
-            Some(ChessPiece::create_knight(Color::Black)),
-            Some(ChessPiece::create_bishop(Color::Black)),
-            Some(ChessPiece::create_queen(Color::Black)),
-            Some(ChessPiece::create_king(Color::Black)),
-            Some(ChessPiece::create_bishop(Color::Black)),
-            Some(ChessPiece::create_knight(Color::Black)),
-            Some(ChessPiece::create_rook(Color::Black)),
-        ];
-
-        let second_black_row = [
-            Some(ChessPiece::create_pawn(Color::Black)),
-            Some(ChessPiece::create_pawn(Color::Black)),
-            Some(ChessPiece::create_pawn(Color::Black)),
-            Some(ChessPiece::create_pawn(Color::Black)),
-            Some(ChessPiece::create_pawn(Color::Black)),
-            Some(ChessPiece::create_pawn(Color::Black)),
-            Some(ChessPiece::create_pawn(Color::Black)),
-            Some(ChessPiece::create_pawn(Color::Black)),
-        ];
-
-        let pieces: [[Option<ChessPiece>; 8]; 8] = [
-            first_white_row,
-            second_white_row,
-            [None; 8],
-            [None; 8],
-            [None; 8],
-            [None; 8],
-            second_black_row,
-            first_black_row,
-        ];
-
-        return pieces;
+    fn color_attack_board(&self, color: Color) -> u64 {
+        let mut attack_board = 0;
+        let color_board = match color {
+            Color::White => self.bit_board.white_pieces(),
+            Color::Black => self.bit_board.black_pieces(),
+        };
+        for i in 0..64 {
+            let position_bit_board = 1 << i;
+            if color_board & position_bit_board != 0 {
+                let position = Position::from_bit_board(position_bit_board);
+                let piece = self.get_piece_at(position).unwrap();
+                let piece_attack_board = piece.attack_board(position, self);
+                attack_board |= piece_attack_board;
+            }
+        }
+        attack_board
     }
 }

@@ -15,12 +15,13 @@ fn move_generation_helper(depth: u8, target: u8, board: &mut Board) -> u64 {
     let mut num_positions = 0;
 
     for (from, to) in legal_moves {
+        let mut board = *board;
         let result = board.move_piece(from, to);
 
         assert!(result.is_ok());
 
-        let poss = move_generation_helper(depth + 1, target, board);
-        board.undo();
+        let poss = move_generation_helper(depth + 1, target, &mut board);
+
         num_positions += poss;
     }
 

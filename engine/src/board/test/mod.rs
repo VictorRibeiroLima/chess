@@ -3,7 +3,7 @@ use std::str::FromStr;
 use crate::{
     board::{Board, GameState},
     piece::{position::Position, ChessPiece, Color, Type},
-    result::{Movement, MovementError, OkMovement},
+    result::{MovementError, MovementType},
 };
 
 #[test]
@@ -289,14 +289,14 @@ fn test_should_mark_double_advance() {
     let from = Position::from_str("e2").unwrap();
     let to = Position::from_str("e4").unwrap();
 
-    assert!(board.move_piece(from, to).is_ok());
-    let last_move = board.get_last_move();
+    let last_move = board.move_piece(from, to);
+    assert!(last_move.is_ok());
+
     let last_move = last_move.unwrap();
-    let last_move = match last_move {
-        Movement::Move(movement) => movement,
-        _ => panic!("Expected movement"),
-    };
-    assert_eq!(last_move, OkMovement::InitialDoubleAdvance((from, to)));
+
+    assert_eq!(last_move.from, from);
+    assert_eq!(last_move.to, to);
+    assert_eq!(last_move.movement_type, MovementType::InitialDoubleAdvance);
 }
 
 #[test]
@@ -323,19 +323,17 @@ fn test_en_passant() {
     let from = Position::from_str("d5").unwrap();
     let to = Position::from_str("e6").unwrap();
 
-    assert!(board.move_piece(from, to).is_ok());
+    println!("{}", board);
 
-    let last_move = board.get_last_move();
+    let last_move = board.move_piece(from, to);
+    assert!(last_move.is_ok());
+
     let last_move = last_move.unwrap();
-    let last_move = match last_move {
-        Movement::Move(movement) => movement,
-        _ => panic!("Expected movement"),
-    };
-    match last_move {
-        OkMovement::EnPassant((from, to), _) => {
-            assert_eq!(from, Position::from_str("d5").unwrap());
-            assert_eq!(to, Position::from_str("e6").unwrap());
-        }
+
+    assert_eq!(last_move.from, Position::from_str("d5").unwrap());
+    assert_eq!(last_move.to, Position::from_str("e6").unwrap());
+    match last_move.movement_type {
+        MovementType::EnPassant(_) => {}
         _ => {
             panic!("Expected en passant");
         }
@@ -527,20 +525,17 @@ fn test_en_passant_2() {
     let from = Position::from_str("d5").unwrap();
     let to = Position::from_str("c6").unwrap();
 
-    assert!(board.move_piece(from, to).is_ok());
+    let last_move = board.move_piece(from, to);
 
-    let last_move = board.get_last_move();
+    assert!(last_move.is_ok());
+
     let last_move = last_move.unwrap();
-    let last_move = match last_move {
-        Movement::Move(movement) => movement,
-        _ => panic!("Expected movement"),
-    };
 
-    match last_move {
-        OkMovement::EnPassant((from, to), _) => {
-            assert_eq!(from, Position::from_str("d5").unwrap());
-            assert_eq!(to, Position::from_str("c6").unwrap());
-        }
+    assert_eq!(last_move.from, Position::from_str("d5").unwrap());
+    assert_eq!(last_move.to, Position::from_str("c6").unwrap());
+
+    match last_move.movement_type {
+        MovementType::EnPassant(_) => {}
         _ => {
             panic!("Expected en passant");
         }
@@ -609,16 +604,14 @@ fn test_should_checkmate() {
     let from = Position::from_str("h2").unwrap();
     let to = Position::from_str("h1").unwrap();
 
-    assert!(board.move_piece(from, to).is_ok());
+    let last_move = board.move_piece(from, to);
+    assert!(last_move.is_ok());
 
-    let last_move = board.get_last_move();
     let last_move = last_move.unwrap();
-    let last_move = match last_move {
-        Movement::Move(movement) => movement,
-        _ => panic!("Expected movement"),
-    };
 
-    assert_eq!(last_move, OkMovement::Valid((from, to)));
+    assert_eq!(last_move.from, from);
+    assert_eq!(last_move.to, to);
+    assert_eq!(last_move.movement_type, MovementType::Valid);
 
     match board.get_state() {
         GameState::Winner(color) => {
@@ -649,6 +642,8 @@ fn test_fools_mate() {
 
     let from = Position::from_str("d8").unwrap();
     let to = Position::from_str("h4").unwrap();
+
+    println!("{}", board);
 
     assert!(board.move_piece(from, to).is_ok());
 
@@ -838,24 +833,22 @@ fn test_kingside_castling_white() {
     let from = Position::from_str("e1").unwrap();
     let to = Position::from_str("g1").unwrap();
 
-    assert!(board.move_piece(from, to).is_ok());
-    let last_move = board.get_last_move();
+    let last_move = board.move_piece(from, to);
+    assert!(last_move.is_ok());
     let last_move = last_move.unwrap();
-    let last_move = match last_move {
-        Movement::Move(movement) => movement,
-        _ => panic!("Expected movement"),
-    };
 
     let expect_rock_from = Position::from_str("h1").unwrap();
     let expect_rock_to = Position::from_str("f1").unwrap();
 
+    assert_eq!(last_move.from, from);
+    assert_eq!(last_move.to, to);
     assert_eq!(
-        last_move,
-        OkMovement::Castling((from, to), (expect_rock_from, expect_rock_to))
+        last_move.movement_type,
+        MovementType::Castling(expect_rock_from, expect_rock_to)
     );
 
-    let king = board.get_piece_at(&to).unwrap();
-    let rock = board.get_piece_at(&expect_rock_to).unwrap();
+    let king = board.get_piece_at(to).unwrap();
+    let rock = board.get_piece_at(expect_rock_to).unwrap();
 
     assert_eq!(king.get_color(), Color::White);
     assert_eq!(rock.get_color(), Color::White);
@@ -863,8 +856,7 @@ fn test_kingside_castling_white() {
     assert_eq!(king.get_type(), Type::King);
     assert_eq!(rock.get_type(), Type::Rook);
 
-    assert!(king.moves == 1);
-    assert!(rock.moves == 1);
+    assert!(!board.can_castle(Color::White));
 }
 
 #[test]
@@ -889,24 +881,22 @@ fn test_queen_side_castling_white() {
     let from = Position::from_str("e1").unwrap();
     let to = Position::from_str("c1").unwrap();
 
-    assert!(board.move_piece(from, to).is_ok());
-    let last_move = board.get_last_move();
+    let last_move = board.move_piece(from, to);
+    assert!(last_move.is_ok());
     let last_move = last_move.unwrap();
-    let last_move = match last_move {
-        Movement::Move(movement) => movement,
-        _ => panic!("Expected movement"),
-    };
 
     let expect_rock_from = Position::from_str("a1").unwrap();
     let expect_rock_to = Position::from_str("d1").unwrap();
 
+    assert_eq!(last_move.from, from);
+    assert_eq!(last_move.to, to);
     assert_eq!(
-        last_move,
-        OkMovement::Castling((from, to), (expect_rock_from, expect_rock_to))
+        last_move.movement_type,
+        MovementType::Castling(expect_rock_from, expect_rock_to)
     );
 
-    let king = board.get_piece_at(&to).unwrap();
-    let rock = board.get_piece_at(&expect_rock_to).unwrap();
+    let king = board.get_piece_at(to).unwrap();
+    let rock = board.get_piece_at(expect_rock_to).unwrap();
 
     assert_eq!(king.get_color(), Color::White);
     assert_eq!(rock.get_color(), Color::White);
@@ -914,8 +904,7 @@ fn test_queen_side_castling_white() {
     assert_eq!(king.get_type(), Type::King);
     assert_eq!(rock.get_type(), Type::Rook);
 
-    assert!(king.moves == 1);
-    assert!(rock.moves == 1);
+    assert!(!board.can_castle(Color::White));
 }
 
 #[test]
@@ -940,24 +929,22 @@ fn test_kingside_castling_black() {
     let from = Position::from_str("e8").unwrap();
     let to = Position::from_str("g8").unwrap();
 
-    assert!(board.move_piece(from, to).is_ok());
-    let last_move = board.get_last_move();
+    let last_move = board.move_piece(from, to);
+    assert!(last_move.is_ok());
     let last_move = last_move.unwrap();
-    let last_move = match last_move {
-        Movement::Move(movement) => movement,
-        _ => panic!("Expected movement"),
-    };
 
     let expect_rock_from = Position::from_str("h8").unwrap();
     let expect_rock_to = Position::from_str("f8").unwrap();
 
+    assert_eq!(last_move.from, from);
+    assert_eq!(last_move.to, to);
     assert_eq!(
-        last_move,
-        OkMovement::Castling((from, to), (expect_rock_from, expect_rock_to))
+        last_move.movement_type,
+        MovementType::Castling(expect_rock_from, expect_rock_to)
     );
 
-    let king = board.get_piece_at(&to).unwrap();
-    let rock = board.get_piece_at(&expect_rock_to).unwrap();
+    let king = board.get_piece_at(to).unwrap();
+    let rock = board.get_piece_at(expect_rock_to).unwrap();
 
     assert_eq!(king.get_color(), Color::Black);
     assert_eq!(rock.get_color(), Color::Black);
@@ -965,8 +952,7 @@ fn test_kingside_castling_black() {
     assert_eq!(king.get_type(), Type::King);
     assert_eq!(rock.get_type(), Type::Rook);
 
-    assert!(king.moves == 1);
-    assert!(rock.moves == 1);
+    assert!(!board.can_castle(Color::Black));
 }
 
 #[test]
@@ -991,24 +977,22 @@ fn test_queen_side_castling_black() {
     let from = Position::from_str("e8").unwrap();
     let to = Position::from_str("c8").unwrap();
 
-    assert!(board.move_piece(from, to).is_ok());
-    let last_move = board.get_last_move();
+    let last_move = board.move_piece(from, to);
+    assert!(last_move.is_ok());
     let last_move = last_move.unwrap();
-    let last_move = match last_move {
-        Movement::Move(movement) => movement,
-        _ => panic!("Expected movement"),
-    };
 
     let expect_rock_from = Position::from_str("a8").unwrap();
     let expect_rock_to = Position::from_str("d8").unwrap();
 
+    assert_eq!(last_move.from, from);
+    assert_eq!(last_move.to, to);
     assert_eq!(
-        last_move,
-        OkMovement::Castling((from, to), (expect_rock_from, expect_rock_to))
+        last_move.movement_type,
+        MovementType::Castling(expect_rock_from, expect_rock_to)
     );
 
-    let king = board.get_piece_at(&to).unwrap();
-    let rock = board.get_piece_at(&expect_rock_to).unwrap();
+    let king = board.get_piece_at(to).unwrap();
+    let rock = board.get_piece_at(expect_rock_to).unwrap();
 
     assert_eq!(king.get_color(), Color::Black);
     assert_eq!(rock.get_color(), Color::Black);
@@ -1016,8 +1000,7 @@ fn test_queen_side_castling_black() {
     assert_eq!(king.get_type(), Type::King);
     assert_eq!(rock.get_type(), Type::Rook);
 
-    assert!(king.moves == 1);
-    assert!(rock.moves == 1);
+    assert!(!board.can_castle(Color::Black));
 }
 
 #[test]
@@ -1096,6 +1079,8 @@ fn test_attacked_path_queen_side_castling() {
     ];
 
     let mut board = Board::mock(pieces, Color::White, None, None);
+
+    println!("{}", board);
 
     let from = Position::from_str("e1").unwrap();
     let to = Position::from_str("c1").unwrap();
