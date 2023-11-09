@@ -1,7 +1,7 @@
 use serde::Serialize;
 use std::{error::Error, fmt::Display};
 
-use crate::piece::{position::Position, ChessPiece, Type};
+use crate::piece::{ChessPiece, Type};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum PromotionError {

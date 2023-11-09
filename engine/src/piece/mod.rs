@@ -4,7 +4,8 @@ use std::fmt::Display;
 use colored::Colorize;
 
 use crate::{
-    board::Board,
+    bit_magic,
+    board::{state::Color, Board},
     result::{MovementError, MovementType, OkMovement},
 };
 
@@ -35,32 +36,6 @@ impl Display for Type {
             Type::King => "♔",
         };
         write!(f, "{}", piece)
-    }
-}
-
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub enum Color {
-    White,
-    Black,
-}
-
-impl Display for Color {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let color = match self {
-            Color::White => "White",
-            Color::Black => "Black",
-        };
-        write!(f, "{}", color)
-    }
-}
-
-impl Color {
-    pub fn other(&self) -> Color {
-        match self {
-            Color::White => Color::Black,
-            Color::Black => Color::White,
-        }
     }
 }
 
@@ -189,19 +164,24 @@ impl ChessPiece {
         to: u64,
         board: &Board,
     ) -> Result<OkMovement, MovementError> {
-        let x_diff = to.x - from.x;
-        let y_diff = to.y - from.y;
-
         let piece_at_position = board.get_piece_at(to);
         let color = self.color;
+        let is_moving_forward = bit_magic::is_moving_vertically(from, to);
 
-        match (x_diff.abs(), y_diff, piece_at_position) {
+        if is_moving_forward {
+            return self.forward_pawn_movement(from, to, board);
+        } else {
+            todo!()
+        }
+
+        /*
+        match (is_at_initial_position, y_diff, piece_at_position) {
             // No piece at the destination
             (0, 1, None) if color == Color::White => Ok(self.valid(from, to)),
             (0, -1, None) if color == Color::Black => Ok(self.valid(from, to)),
 
             // First move, allowing two squares
-            (0, 2, None) => {
+            (true, 2, None) => {
                 let is_path_clear = board.is_vertical_path_clean(from, to);
                 let is_color_white = color == Color::White;
                 //if the pawn is white, it should be at the second row
@@ -213,7 +193,7 @@ impl ChessPiece {
                     Err(MovementError::InvalidMovement)
                 }
             }
-            (0, -2, None) => {
+            (true, -2, None) => {
                 let is_path_clear = board.is_vertical_path_clean(from, to);
                 let is_color_black = color == Color::Black;
                 //if the pawn is black, it should be at the seventh row
@@ -278,7 +258,9 @@ impl ChessPiece {
             }
 
             _ => Err(MovementError::InvalidMovement),
+
         }
+        */
     }
 
     fn can_move_bishop(
@@ -287,10 +269,9 @@ impl ChessPiece {
         to: u64,
         board: &Board,
     ) -> Result<OkMovement, MovementError> {
-        let x_diff = (to.x - from.x).abs();
-        let y_diff = (to.y - from.y).abs();
+        let is_moving_diagonally = bit_magic::is_moving_diagonally(from, to);
 
-        if x_diff != y_diff {
+        if !is_moving_diagonally {
             return Err(MovementError::InvalidMovement);
         }
 
@@ -322,16 +303,16 @@ impl ChessPiece {
         to: u64,
         board: &Board,
     ) -> Result<OkMovement, MovementError> {
-        let x_diff = (to.x - from.x).abs();
-        let y_diff = (to.y - from.y).abs();
+        let is_moving_horizontally = bit_magic::is_moving_horizontally(from, to);
+        let is_moving_vertically = bit_magic::is_moving_vertically(from, to);
 
-        if x_diff != 0 && y_diff != 0 {
+        if !is_moving_horizontally && !is_moving_vertically {
             return Err(MovementError::InvalidMovement);
         }
 
-        let is_path_clear = match (x_diff, y_diff) {
-            (0, _) => board.is_vertical_path_clean(from, to),
-            (_, 0) => board.is_horizontal_path_clean(from, to),
+        let is_path_clear = match (is_moving_vertically, is_moving_horizontally) {
+            (true, _) => board.is_vertical_path_clean(from, to),
+            (_, true) => board.is_horizontal_path_clean(from, to),
             _ => false,
         };
 
@@ -360,20 +341,32 @@ impl ChessPiece {
         to: u64,
         board: &Board,
     ) -> Result<OkMovement, MovementError> {
-        let x_diff = to.x - from.x;
-        let y_diff = to.y - from.y;
+        let is_moving_horizontally = bit_magic::is_moving_horizontally(from, to);
+        let is_moving_vertically = bit_magic::is_moving_vertically(from, to);
+        let is_moving_diagonally = bit_magic::is_moving_diagonally(from, to);
+        let bit_distance = bit_magic::bit_distance(from, to);
 
-        //castling
-        //see: https://en.wikipedia.org/wiki/Castling
-        if y_diff == 0 && (x_diff == 2 || x_diff == -2) {
-            return self.can_perform_castling(from, to, board);
+        if !is_moving_horizontally && !is_moving_vertically && !is_moving_diagonally {
+            return Err(MovementError::InvalidMovement);
         }
 
-        let x_diff = x_diff.abs();
-        let y_diff = y_diff.abs();
-
-        if x_diff > 1 || y_diff > 1 {
-            return Err(MovementError::InvalidMovement);
+        if is_moving_vertically {
+            if bit_distance != 8 {
+                return Err(MovementError::InvalidMovement);
+            }
+        } else if is_moving_horizontally {
+            //castling
+            //see: https://en.wikipedia.org/wiki/Castling
+            if bit_distance == 2 {
+                todo!("Castling")
+            }
+            if bit_distance != 1 {
+                return Err(MovementError::InvalidMovement);
+            }
+        } else {
+            if bit_distance != 7 && bit_distance != 9 {
+                return Err(MovementError::InvalidMovement);
+            }
         }
 
         let piece_at_position = board.get_piece_at(to);
@@ -397,6 +390,8 @@ impl ChessPiece {
         to: u64,
         board: &Board,
     ) -> Result<OkMovement, MovementError> {
+        todo!();
+        /*
         let x_diff = (to.x - from.x).abs();
         let y_diff = (to.y - from.y).abs();
 
@@ -421,6 +416,7 @@ impl ChessPiece {
                 }
             }
         }
+        */
     }
 
     fn can_move_queen(
@@ -429,20 +425,21 @@ impl ChessPiece {
         to: u64,
         board: &Board,
     ) -> Result<OkMovement, MovementError> {
-        let x_diff = (to.x - from.x).abs();
-        let y_diff = (to.y - from.y).abs();
+        let is_moving_horizontally = bit_magic::is_moving_horizontally(from, to);
+        let is_moving_vertically = bit_magic::is_moving_vertically(from, to);
+        let is_moving_diagonally = bit_magic::is_moving_diagonally(from, to);
 
         let piece_at_position = board.get_piece_at(to);
         let color = self.color;
 
         //The queen is moving at a L shape and not a straight line
-        if x_diff != y_diff && x_diff != 0 && y_diff != 0 {
+        if !is_moving_horizontally && !is_moving_vertically && !is_moving_diagonally {
             return Err(MovementError::InvalidMovement);
         }
 
-        let is_path_clear = match (x_diff, y_diff) {
-            (0, _) => board.is_vertical_path_clean(from, to),
-            (_, 0) => board.is_horizontal_path_clean(from, to),
+        let is_path_clear = match (is_moving_vertically, is_moving_horizontally) {
+            (true, _) => board.is_vertical_path_clean(from, to),
+            (_, true) => board.is_horizontal_path_clean(from, to),
             _ => board.is_diagonal_path_clean(from, to),
         };
 
@@ -463,6 +460,7 @@ impl ChessPiece {
         }
     }
 
+    /*
     fn can_perform_castling(
         &self,
         from: u64,
@@ -529,6 +527,46 @@ impl ChessPiece {
         }
 
         return Ok(self.castling(from, to, rock_from, rock_to));
+    }
+    */
+
+    fn forward_pawn_movement(
+        &self,
+        from: u64,
+        to: u64,
+        board: &Board,
+    ) -> Result<OkMovement, MovementError> {
+        let color = self.color;
+        let piece_at_position = board.get_piece_at(to);
+        match piece_at_position {
+            Some(_) => return Err(MovementError::InvalidMovement),
+            None => match color {
+                Color::White => {
+                    let valid = (to == from << 8)
+                        || (to == from << 16
+                            && bit_magic::is_pawn_at_initial_position(from, color));
+
+                    let is_path_clear = board.is_vertical_path_clean(from, to);
+                    if valid && is_path_clear {
+                        return Ok(self.valid(from, to));
+                    } else {
+                        return Err(MovementError::InvalidMovement);
+                    }
+                }
+                Color::Black => {
+                    let valid = (to == from >> 8)
+                        || (to == from >> 16
+                            && bit_magic::is_pawn_at_initial_position(from, color));
+
+                    let is_path_clear = board.is_vertical_path_clean(from, to);
+                    if valid && is_path_clear {
+                        return Ok(self.valid(from, to));
+                    } else {
+                        return Err(MovementError::InvalidMovement);
+                    }
+                }
+            },
+        };
     }
 
     fn valid(&self, from: u64, to: u64) -> OkMovement {

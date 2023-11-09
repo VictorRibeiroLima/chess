@@ -1,14 +1,15 @@
 use std::fmt;
 
 use crate::{
-    piece::{position::Position, ChessPiece, Color, Type},
+    bit_board::BitBoard,
+    bit_magic,
+    piece::{position::Position, ChessPiece, Type},
     result::{MovementError, MovementType, OkMovement, PromotionError},
 };
 
-mod bit_board;
 pub mod state;
 
-use self::state::GameState;
+use self::state::{Color, GameState};
 
 #[cfg(test)]
 mod test;
@@ -18,8 +19,8 @@ pub struct Board {
     turn: Color,
     state: GameState,
     check: Option<Color>,
-    bit_board: bit_board::BitBoard,
-    en_passant: Option<Position>,
+    bit_board: BitBoard,
+    en_passant: Option<u64>,
     white_castling_possible: bool,
     black_castling_possible: bool,
 }
@@ -33,22 +34,22 @@ impl fmt::Display for Board {
         }
         writeln!(f, "----------------")?;
 
-        for y in (0..8).rev() {
-            for x in 0..8 {
-                let piece = self.get_piece_at(Position { x, y });
-                match piece {
-                    Some(piece) => {
-                        let piece = piece.to_string();
-                        write!(f, "{} ", piece)?;
-                    }
-                    None => write!(f, ". ")?,
+        for i in (0..64).rev() {
+            let position = 1 << i;
+            let piece = self.get_piece_at(position);
+            match piece {
+                Some(piece) => {
+                    let piece = piece.to_string();
+                    write!(f, "{} ", piece)?;
                 }
-                if x == 7 {
-                    write!(f, "|{}", y + 1)?;
-                }
+                None => write!(f, ". ")?,
             }
-            writeln!(f)?;
-            if y == 0 {
+            if i % 8 == 0 {
+                write!(f, "|{}", i / 8 + 1)?;
+                writeln!(f)?;
+            }
+
+            if i == 0 {
                 writeln!(f, "----------------")?;
                 writeln!(f, "a b c d e f g h")?;
             }
@@ -63,7 +64,7 @@ impl Board {
             turn: Color::White,
             state: GameState::InProgress,
             check: None,
-            bit_board: bit_board::BitBoard::new(),
+            bit_board: BitBoard::new(),
             en_passant: None,
             white_castling_possible: true,
             black_castling_possible: true,
@@ -81,7 +82,7 @@ impl Board {
             turn,
             state: GameState::InProgress,
             check,
-            bit_board: bit_board::BitBoard::from_array(arr),
+            bit_board: BitBoard::from_array(arr),
             en_passant: None,
             white_castling_possible: true,
             black_castling_possible: true,
@@ -92,7 +93,7 @@ impl Board {
         self.turn = Color::White;
         self.state = GameState::InProgress;
         self.check = None;
-        self.bit_board = bit_board::BitBoard::new();
+        self.bit_board = BitBoard::new();
     }
 
     pub fn get_state(&self) -> GameState {
@@ -133,7 +134,7 @@ impl Board {
     }
 
     //TODO: This is a very expensive operation.
-    pub fn legal_moves(&self) -> Vec<(Position, Position)> {
+    pub fn legal_moves(&self) -> Vec<(u64, u64)> {
         let mut moves = Vec::new();
         match self.state {
             GameState::WaitingPromotion(_, _) => return moves,
@@ -141,17 +142,15 @@ impl Board {
             GameState::Draw => return moves,
             GameState::InProgress => {}
         }
-        for y in 0..8 {
-            for x in 0..8 {
-                let position = Position { x, y };
-                let piece = self.get_piece_at(position);
-                if let Some(piece) = piece {
-                    let piece_color = piece.get_color();
-                    if piece_color == self.turn {
-                        let legal_moves = piece.legal_moves(position, self);
-                        for legal_move in legal_moves {
-                            moves.push((position, legal_move));
-                        }
+        for i in 0..64 {
+            let position = 1 << i;
+            let piece = self.get_piece_at(position);
+            if let Some(piece) = piece {
+                let piece_color = piece.get_color();
+                if piece_color == self.turn {
+                    let legal_moves = piece.legal_moves(position, self);
+                    for legal_move in legal_moves {
+                        moves.push((position, legal_move));
                     }
                 }
             }
@@ -194,6 +193,7 @@ impl Board {
         } else {
             self.check = None;
         }
+        let position = Position::from_bit_board(position);
         return Ok((position, piece_type));
     }
 
@@ -202,6 +202,8 @@ impl Board {
         from: Position,
         to: Position,
     ) -> Result<OkMovement, MovementError> {
+        let from = from.to_bit_board();
+        let to = to.to_bit_board();
         let err = match self.state {
             GameState::WaitingPromotion(_, _) => Some(MovementError::PromotionNotSpecified),
             GameState::Winner(_) => Some(MovementError::GameIsOver),
@@ -269,82 +271,24 @@ impl Board {
     }
 
     pub fn is_vertical_path_clean(&self, from: u64, to: u64) -> bool {
-        let mut y = from.y;
-        let x = from.x;
+        let mov_bb = bit_magic::vertical_move_bb(from, to);
+        let board = self.bit_board.full_board();
 
-        loop {
-            if y < to.y {
-                y += 1;
-            } else {
-                y -= 1;
-            }
-
-            let position = Position { x, y };
-
-            if position == to {
-                break;
-            }
-
-            if !self.bit_board.is_position_clean(position) {
-                return false;
-            }
-        }
-
-        true
+        mov_bb & board == 0
     }
 
     pub fn is_horizontal_path_clean(&self, from: u64, to: u64) -> bool {
-        let mut x = from.x;
-        let y = from.y;
+        let mov_bb = bit_magic::horizontal_move_bb(from, to);
+        let board = self.bit_board.full_board();
 
-        loop {
-            if x < to.x {
-                x += 1;
-            } else {
-                x -= 1;
-            }
-
-            let position = Position { x, y };
-            if position == to {
-                break;
-            }
-            if !self.bit_board.is_position_clean(position) {
-                return false;
-            }
-        }
-
-        true
+        mov_bb & board == 0
     }
 
     pub fn is_diagonal_path_clean(&self, from: u64, to: u64) -> bool {
-        let mut x = from.x;
-        let mut y = from.y;
+        let mov_bb = bit_magic::diagonal_move_bb(from, to);
+        let board = self.bit_board.full_board();
 
-        loop {
-            if x < to.x {
-                x += 1;
-            } else {
-                x -= 1;
-            }
-
-            if y < to.y {
-                y += 1;
-            } else {
-                y -= 1;
-            }
-
-            let position = Position { x, y };
-
-            if position == to {
-                break;
-            }
-
-            if !self.bit_board.is_position_clean(position) {
-                return false;
-            }
-        }
-
-        true
+        mov_bb & board == 0
     }
 
     pub fn creates_check(&self, movement: OkMovement) -> bool {
@@ -361,7 +305,7 @@ impl Board {
         return is_king_in_check;
     }
 
-    pub fn en_passant(&self) -> Option<Position> {
+    pub fn en_passant(&self) -> Option<u64> {
         self.en_passant
     }
 
@@ -378,9 +322,8 @@ impl Board {
         };
 
         for i in 0..64 {
-            let position_bit_board = 1 << i;
-            if color_board & position_bit_board != 0 {
-                let position = Position::from_bit_board(position_bit_board);
+            let position = 1 << i;
+            if color_board & position != 0 {
                 let piece = self.get_piece_at(position).unwrap();
                 let legal_moves = piece.legal_moves(position, self);
 
@@ -401,10 +344,10 @@ impl Board {
         is_check
     }
 
-    fn find_king_position(&self, color: Color) -> Position {
+    fn find_king_position(&self, color: Color) -> u64 {
         match color {
-            Color::White => Position::from_bit_board(self.bit_board.white_king),
-            Color::Black => Position::from_bit_board(self.bit_board.black_king),
+            Color::White => self.bit_board.white_king,
+            Color::Black => self.bit_board.black_king,
         }
     }
 
@@ -426,11 +369,11 @@ impl Board {
         self.bit_board.move_piece(piece, from, to);
         match movement.movement_type {
             MovementType::EnPassant(_) => {
-                let enemy_pawn_position = Position { x: to.x, y: from.y };
+                let enemy_pawn_position = 0; //TODO: get enemy pawn position
                 self.bit_board.remove_piece_at_position(enemy_pawn_position);
             }
             MovementType::Castling(rock_from, rock_to) => {
-                let rock = self.bit_board.piece_at_position(rock_from).unwrap();
+                let rock = self.bit_board.piece_at_bit_board(rock_from).unwrap();
                 self.bit_board.move_piece(rock, rock_from, rock_to);
             }
             MovementType::Capture(captured_piece) => {
@@ -449,16 +392,17 @@ impl Board {
         return piece;
     }
 
-    fn check_promotion(&self, piece: ChessPiece, target: Position) -> bool {
+    fn check_promotion(&self, piece: ChessPiece, target: u64) -> bool {
         let piece_type = piece.get_type();
         let piece_color = piece.get_color();
-        if piece_type == Type::Pawn {
+        /* if piece_type == Type::Pawn {
             if (piece_color == Color::White && target.y == 7)
                 || (piece_color == Color::Black && target.y == 0)
             {
                 return true;
             }
-        }
+        }*/
+        //TODO: check promotion
         false
     }
 
@@ -480,9 +424,8 @@ impl Board {
             Color::Black => self.bit_board.black_pieces(),
         };
         for i in 0..64 {
-            let position_bit_board = 1 << i;
-            if color_board & position_bit_board != 0 {
-                let position = Position::from_bit_board(position_bit_board);
+            let position = 1 << i;
+            if color_board & position != 0 {
                 let piece = self.get_piece_at(position).unwrap();
                 let piece_attack_board = piece.attack_board(position, self);
                 attack_board |= piece_attack_board;

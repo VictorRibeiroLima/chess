@@ -87,6 +87,9 @@ fn bishop_movement_test() {
 
     let from = Position::from_str("e4").unwrap();
     let to = Position::from_str("f3").unwrap();
+
+    let from = from.to_bit_board();
+    let to = to.to_bit_board();
     let bishop = board.get_piece_at(from).unwrap();
 
     assert!(bishop.can_move(from, to, &board).is_ok());
@@ -99,18 +102,23 @@ fn initial_pawn_movement_test() {
     let from = Position::from_str("c2").unwrap();
     let to = Position::from_str("c3").unwrap();
 
+    let from = from.to_bit_board();
+    let to = to.to_bit_board();
+
     let pawn = board.get_piece_at(from).unwrap();
 
     assert!(pawn.can_move(from, to, &board).is_ok());
 }
 
 #[test]
-
 fn initial_pawn_movement_2_test() {
     let board = Board::new();
 
     let from = Position::from_str("c2").unwrap();
     let to = Position::from_str("c4").unwrap();
+
+    let from = from.to_bit_board();
+    let to = to.to_bit_board();
 
     let pawn = board.get_piece_at(from).unwrap();
 
@@ -167,6 +175,9 @@ fn initial_pawn_movement_2_test_blocked() {
 
     let from = Position::from_str("c2").unwrap();
     let to = Position::from_str("c4").unwrap();
+
+    let from = from.to_bit_board();
+    let to = to.to_bit_board();
 
     let pawn = board.get_piece_at(from).unwrap();
 
@@ -246,6 +257,9 @@ fn test_cant_make_a_movement_that_dont_remove_check() {
     let from = Position::from_str("a7").unwrap();
     let to = Position::from_str("a5").unwrap();
 
+    let from = from.to_bit_board();
+    let to = to.to_bit_board();
+
     let pawn = board.get_piece_at(from).unwrap();
 
     assert!(!pawn.can_move(from, to, &board).is_ok());
@@ -323,6 +337,9 @@ fn test_can_make_a_movement_that_remove_check() {
 
     let from = Position::from_str("e8").unwrap();
     let to = Position::from_str("d7").unwrap();
+
+    let from = from.to_bit_board();
+    let to = to.to_bit_board();
 
     let king = board.get_piece_at(from).unwrap();
 
@@ -404,6 +421,9 @@ fn weird_legal_move_pawn() {
     let from = Position::from_str("d4").unwrap();
     let to = Position::from_str("e1").unwrap();
 
+    let from = from.to_bit_board();
+    let to = to.to_bit_board();
+
     let pawn = board.get_piece_at(from).unwrap();
 
     assert!(!pawn.can_move(from, to, &board).is_ok());
@@ -483,6 +503,9 @@ fn weird_legal_move_knight() {
 
     let from = Position::from_str("g8").unwrap();
     let to = Position::from_str("e7").unwrap();
+
+    let from = from.to_bit_board();
+    let to = to.to_bit_board();
 
     let knight = board.get_piece_at(from).unwrap();
 
@@ -564,6 +587,9 @@ fn test_move_should_not_be_possible_if_creates_check() {
     let from = Position::from_str("e7").unwrap();
     let to = Position::from_str("g8").unwrap();
 
+    let from = from.to_bit_board();
+    let to = to.to_bit_board();
+
     let knight = board.get_piece_at(from).unwrap();
     assert!(!knight.can_move(from, to, &board).is_ok());
 }
@@ -600,6 +626,9 @@ fn test_double_check() {
 
     let from = Position::from_str("a1").unwrap();
     let to = Position::from_str("a2").unwrap();
+
+    let from = from.to_bit_board();
+    let to = to.to_bit_board();
 
     let king = board.get_piece_at(from).unwrap();
 
